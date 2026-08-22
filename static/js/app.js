@@ -38,7 +38,6 @@ document.addEventListener("DOMContentLoaded", () => {
   const targetDayButtons = document.querySelectorAll(".target-day-btn");
   const targetDaysValue = document.getElementById("targetDaysValue");
   const exactDaysCheckbox = document.getElementById("exactDaysCheckbox");
-  const mandatorySectionsInput = document.getElementById("mandatorySectionsInput");
   const mandatoryFacultyCheckbox = document.getElementById("mandatoryFacultyCheckbox");
   const avoidFacultyInput = document.getElementById("avoidFacultyInput");
   const avoidFacultySuggestions = document.getElementById("avoidFacultySuggestions");
@@ -950,7 +949,8 @@ document.addEventListener("DOMContentLoaded", () => {
       selectedCoursesContainer.innerHTML = "";
       selectedCoursesContainer.appendChild(noCoursesPlaceholder);
       noCoursesPlaceholder.classList.remove("hidden");
-      if (courseMandatorySlots) courseMandatorySlots.innerHTML = "";
+      if (courseMandatorySlots)
+        courseMandatorySlots.innerHTML = `<p class="text-[11px] text-slate-500 italic">Add courses above to set specific mandatory sections per course.</p>`;
       if (courseFacultySlots)
         courseFacultySlots.innerHTML = `<p class="text-[11px] text-slate-500 italic">Add courses above to set specific faculty preferences per course.</p>`;
       return;
@@ -997,7 +997,7 @@ document.addEventListener("DOMContentLoaded", () => {
           (code) => `
           <div class="flex items-center space-x-2 text-[11px]">
             <span class="w-16 font-mono font-semibold text-brand-300 shrink-0">${code}:</span>
-            <input type="text" class="course-spec-mand px-2 py-1 bg-slate-900 border border-slate-700 rounded text-xs text-slate-100 placeholder-slate-500 w-full" data-code="${code}" placeholder="e.g. 01, 02 (optional)" value="${savedMandatory[code] || ""}">
+            <input type="text" class="course-spec-mand px-2.5 py-1.5 bg-slate-900 border border-slate-700 rounded-lg text-xs text-slate-100 placeholder-slate-500 w-full focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent transition" data-code="${code}" placeholder="e.g. 01, 02 (sections for ${code})" value="${savedMandatory[code] || ""}">
           </div>
         `
         )
@@ -1082,7 +1082,6 @@ document.addEventListener("DOMContentLoaded", () => {
     targetDayButtons[0].classList.add("active-day");
     state.targetDays = 0;
     targetDaysValue.textContent = "Any";
-    mandatorySectionsInput.value = "";
     mandatoryFacultyCheckbox.checked = false;
     avoidFacultyInput.value = "";
     state.skipTimes = [];
@@ -1159,9 +1158,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Collect mandatory sections
     const mandTokens = [];
-    const rawGlobalMand = mandatorySectionsInput.value.trim();
-    if (rawGlobalMand) mandTokens.push(rawGlobalMand);
-
     document.querySelectorAll(".course-spec-mand").forEach((inp) => {
       const val = inp.value.trim();
       const code = inp.dataset.code;
