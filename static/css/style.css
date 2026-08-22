@@ -56,6 +56,26 @@ html:not(.dark) .border-slate-800 {
   border-color: #e2e8f0 !important;
 }
 
+html:not(.dark) .faculty-suggestions-dropdown,
+html:not(.dark) #preferredFacultySuggestions,
+html:not(.dark) #avoidFacultySuggestions,
+html:not(.dark) #courseSuggestions {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1) !important;
+}
+
+html:not(.dark) .fac-suggestion-item:hover {
+  background-color: #f8fafc !important;
+}
+
+html:not(.dark) .bg-purple-950\/60,
+html:not(.dark) .bg-purple-950\/40 {
+  background-color: #f5f3ff !important;
+  border-color: #ddd6fe !important;
+  color: #6b21a8 !important;
+}
+
 /* Scrollbar Customization */
 ::-webkit-scrollbar {
   width: 6px;

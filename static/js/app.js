@@ -38,8 +38,10 @@ document.addEventListener("DOMContentLoaded", () => {
   const exactDaysCheckbox = document.getElementById("exactDaysCheckbox");
   const mandatorySectionsInput = document.getElementById("mandatorySectionsInput");
   const preferredFacultyInput = document.getElementById("preferredFacultyInput");
+  const preferredFacultySuggestions = document.getElementById("preferredFacultySuggestions");
   const mandatoryFacultyCheckbox = document.getElementById("mandatoryFacultyCheckbox");
   const avoidFacultyInput = document.getElementById("avoidFacultyInput");
+  const avoidFacultySuggestions = document.getElementById("avoidFacultySuggestions");
   const customSkipTimesInput = document.getElementById("customSkipTimesInput");
   const primarySortSelect = document.getElementById("primarySortSelect");
   const secondarySortSelect = document.getElementById("secondarySortSelect");
@@ -180,6 +182,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
       const totalSec = data.total_sections || 0;
       feedStatusText.textContent = `Synced (${totalSec.toLocaleString()} sections)`;
+      if (state.selectedCourses.length > 0) {
+        renderSelectedCourses();
+      }
       showToast(refresh ? "Course feed refreshed from USIS!" : "Feed connected successfully", "success");
     } catch (err) {
       feedStatusText.textContent = "Feed offline (local fallback)";
@@ -290,6 +295,312 @@ document.addEventListener("DOMContentLoaded", () => {
     btn.addEventListener("click", () => addCourse(btn.dataset.code));
   });
 
+  // -----------------------------------------------------------------------
+  // Faculty Autocomplete & Suggestions Engine
+  // -----------------------------------------------------------------------
+
+  /**
+   * Helper to parse comma/space separated input tokens and identify active token
+   */
+  function getActiveTokenInfo(inputElement) {
+    const val = inputElement.value || "";
+    const cursorPos =
+      inputElement.selectionStart !== null && inputElement.selectionStart !== undefined
+        ? inputElement.selectionStart
+        : val.length;
+    const textBeforeCursor = val.slice(0, cursorPos);
+    const lastCommaIndex = textBeforeCursor.lastIndexOf(",");
+
+    const activeTokenRaw = (lastCommaIndex === -1 ? textBeforeCursor : textBeforeCursor.slice(lastCommaIndex + 1)).trim();
+    const activeToken = activeTokenRaw.toUpperCase();
+
+    const allTokens = val
+      .split(/[,;]+/)
+      .map((t) => t.trim().toUpperCase())
+      .filter(Boolean);
+
+    return {
+      val,
+      cursorPos,
+      activeToken,
+      allTokens,
+    };
+  }
+
+  /**
+   * Toggles or inserts a faculty initial cleanly into the input
+   */
+  function toggleFacultyToken(inputElement, facInitial) {
+    const info = getActiveTokenInfo(inputElement);
+    const targetFac = facInitial.trim().toUpperCase();
+    let currentTokens = inputElement.value
+      .split(/[,;]+/)
+      .map((t) => t.trim().toUpperCase())
+      .filter(Boolean);
+
+    if (currentTokens.includes(targetFac)) {
+      // Toggle off: remove
+      currentTokens = currentTokens.filter((t) => t !== targetFac);
+    } else {
+      // If user was typing a partial token that matches the beginning of targetFac, replace it
+      if (info.activeToken && info.activeToken !== targetFac && targetFac.startsWith(info.activeToken)) {
+        const partialIdx = currentTokens.indexOf(info.activeToken);
+        if (partialIdx !== -1) {
+          currentTokens[partialIdx] = targetFac;
+        } else {
+          currentTokens.push(targetFac);
+        }
+      } else {
+        currentTokens.push(targetFac);
+      }
+    }
+
+    // Deduplicate
+    currentTokens = Array.from(new Set(currentTokens));
+
+    inputElement.value = currentTokens.length > 0 ? currentTokens.join(", ") + ", " : "";
+    inputElement.focus();
+    inputElement.dispatchEvent(new Event("input", { bubbles: true }));
+  }
+
+  /**
+   * Setup interactive faculty suggestions dropdown for an input element
+   * @param {HTMLInputElement} inputEl
+   * @param {HTMLElement} dropdownEl
+   * @param {string|null} courseCode - If specified, scopes to course's specific faculties
+   */
+  function setupFacultyAutocomplete(inputEl, dropdownEl, courseCode = null) {
+    if (!inputEl || !dropdownEl) return;
+    let highlightedIndex = -1;
+
+    function getFacultyData() {
+      if (courseCode) {
+        const cObj = state.allCourses.find((c) => c.code.toUpperCase() === courseCode.toUpperCase());
+        if (cObj) {
+          return {
+            faculties: cObj.faculties || [],
+            sections: cObj.faculty_sections || {},
+            title: cObj.title || "",
+            isCourseSpecific: true,
+          };
+        }
+        return { faculties: [], sections: {}, title: "", isCourseSpecific: true };
+      }
+
+      // Global faculty list - prioritize faculties who teach selected courses
+      const selectedCourseFaculties = new Set();
+      const facCourseMap = {};
+      state.selectedCourses.forEach((code) => {
+        const c = state.allCourses.find((x) => x.code === code);
+        if (c && c.faculties) {
+          c.faculties.forEach((f) => {
+            selectedCourseFaculties.add(f);
+            if (!facCourseMap[f]) facCourseMap[f] = [];
+            if (!facCourseMap[f].includes(code)) facCourseMap[f].push(code);
+          });
+        }
+      });
+
+      return {
+        faculties: state.allFaculties || [],
+        sections: {},
+        facCourseMap,
+        selectedCourseFaculties,
+        isCourseSpecific: false,
+      };
+    }
+
+    function renderSuggestions() {
+      const { faculties, sections, facCourseMap, selectedCourseFaculties, isCourseSpecific } = getFacultyData();
+      const tokenInfo = getActiveTokenInfo(inputEl);
+      const query = tokenInfo.activeToken;
+      const currentSelected = new Set(tokenInfo.allTokens);
+
+      if (!faculties || faculties.length === 0) {
+        if (isCourseSpecific) {
+          dropdownEl.innerHTML = `
+            <div class="p-3 text-center text-xs text-slate-400">
+              <p class="font-medium text-slate-300">No individual faculties listed</p>
+              <p class="text-[10px] text-slate-500 mt-0.5">Faculty may be TBA in current USIS course feed.</p>
+            </div>`;
+          dropdownEl.classList.remove("hidden");
+        } else {
+          dropdownEl.classList.add("hidden");
+        }
+        return;
+      }
+
+      // Filter faculties
+      let matches = [];
+      if (!query) {
+        matches = [...faculties];
+      } else {
+        const startsWith = faculties.filter((f) => f.toUpperCase().startsWith(query));
+        const contains = faculties.filter((f) => !f.toUpperCase().startsWith(query) && f.toUpperCase().includes(query));
+        matches = [...startsWith, ...contains];
+      }
+
+      // For global input: prioritize faculties from selected courses
+      if (!isCourseSpecific && selectedCourseFaculties && selectedCourseFaculties.size > 0) {
+        matches.sort((a, b) => {
+          const aIn = selectedCourseFaculties.has(a) ? 0 : 1;
+          const bIn = selectedCourseFaculties.has(b) ? 0 : 1;
+          if (aIn !== bIn) return aIn - bIn;
+          return a.localeCompare(b);
+        });
+      }
+
+      // Limit to 25 items
+      const displayMatches = matches.slice(0, 25);
+
+      if (displayMatches.length === 0) {
+        dropdownEl.innerHTML = `
+          <div class="p-2.5 text-center text-xs text-slate-400 italic">
+            No faculties found matching <span class="font-mono text-purple-300 font-semibold">"${query}"</span>
+          </div>`;
+        dropdownEl.classList.remove("hidden");
+        highlightedIndex = -1;
+        return;
+      }
+
+      const headerText = isCourseSpecific
+        ? `<span>Available Faculty for <span class="font-mono font-bold text-purple-300">${courseCode}</span> (${faculties.length})</span>`
+        : `<span>Faculty Initials (${matches.length} match${matches.length === 1 ? "" : "es"})</span>`;
+
+      const headerHtml = `
+        <div class="px-3 py-1.5 bg-purple-950/60 border-b border-purple-800/40 text-[10px] font-semibold text-purple-300 flex items-center justify-between sticky top-0 backdrop-blur z-10">
+          ${headerText}
+          <span class="text-[9px] text-slate-400 font-normal">Click or Enter to toggle</span>
+        </div>`;
+
+      const itemsHtml = displayMatches
+        .map((fac, idx) => {
+          const isSelected = currentSelected.has(fac);
+          const secList = sections && sections[fac] ? sections[fac] : [];
+          const secStr = secList.length > 0 ? `Sec ${secList.join(", ")}` : "";
+          const courseList = facCourseMap && facCourseMap[fac] ? facCourseMap[fac] : [];
+          const courseStr = courseList.length > 0 ? courseList.join(", ") : "";
+
+          const badgeHtml = isSelected
+            ? `<span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">✓ Added</span>`
+            : `<span class="text-[10px] text-slate-400 opacity-0 group-hover:opacity-100 transition font-medium text-purple-300">+ Add</span>`;
+
+          const detailsHtml =
+            isCourseSpecific && secStr
+              ? `<span class="text-[10px] text-slate-400 font-mono">${secStr}</span>`
+              : !isCourseSpecific && courseStr
+              ? `<span class="text-[10px] text-purple-400/80 font-mono">${courseStr}</span>`
+              : "";
+
+          return `
+            <div class="fac-suggestion-item group px-3 py-2 hover:bg-purple-900/40 cursor-pointer flex items-center justify-between transition ${idx === highlightedIndex ? "bg-purple-900/50" : ""}" data-faculty="${fac}" data-index="${idx}">
+              <div class="flex items-center space-x-2.5">
+                <div class="w-6 h-6 rounded-md bg-purple-500/20 border border-purple-500/30 flex items-center justify-center font-mono font-bold text-xs text-purple-200">
+                  ${fac.slice(0, 2)}
+                </div>
+                <div>
+                  <div class="flex items-center space-x-2">
+                    <span class="font-mono font-bold text-xs text-purple-200">${fac}</span>
+                    ${detailsHtml}
+                  </div>
+                </div>
+              </div>
+              <div>${badgeHtml}</div>
+            </div>`;
+        })
+        .join("");
+
+      dropdownEl.innerHTML = headerHtml + itemsHtml;
+      dropdownEl.classList.remove("hidden");
+
+      // Attach click listeners
+      dropdownEl.querySelectorAll(".fac-suggestion-item").forEach((item) => {
+        item.addEventListener("mousedown", (e) => {
+          e.preventDefault(); // Prevent input blur before click
+          const fac = item.dataset.faculty;
+          toggleFacultyToken(inputEl, fac);
+          renderSuggestions();
+        });
+      });
+    }
+
+    inputEl.addEventListener("focus", () => {
+      renderSuggestions();
+    });
+
+    inputEl.addEventListener("input", () => {
+      highlightedIndex = -1;
+      renderSuggestions();
+    });
+
+    inputEl.addEventListener("keydown", (e) => {
+      if (dropdownEl.classList.contains("hidden")) {
+        if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+          renderSuggestions();
+        }
+        return;
+      }
+
+      const items = dropdownEl.querySelectorAll(".fac-suggestion-item");
+      if (items.length === 0) return;
+
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        highlightedIndex = (highlightedIndex + 1) % items.length;
+        updateHighlight(items);
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        highlightedIndex = (highlightedIndex - 1 + items.length) % items.length;
+        updateHighlight(items);
+      } else if (e.key === "Enter" || e.key === "Tab") {
+        if (highlightedIndex >= 0 && highlightedIndex < items.length) {
+          e.preventDefault();
+          const selectedFac = items[highlightedIndex].dataset.faculty;
+          toggleFacultyToken(inputEl, selectedFac);
+          renderSuggestions();
+        } else if (items.length > 0 && inputEl.value.trim().length > 0 && e.key === "Enter") {
+          e.preventDefault();
+          const firstFac = items[0].dataset.faculty;
+          toggleFacultyToken(inputEl, firstFac);
+          renderSuggestions();
+        }
+      } else if (e.key === "Escape") {
+        dropdownEl.classList.add("hidden");
+      }
+    });
+
+    function updateHighlight(items) {
+      items.forEach((it, idx) => {
+        if (idx === highlightedIndex) {
+          it.classList.add("bg-purple-900/50");
+          it.scrollIntoView({ block: "nearest" });
+        } else {
+          it.classList.remove("bg-purple-900/50");
+        }
+      });
+    }
+  }
+
+  // Global click to close any open suggestions dropdown
+  document.addEventListener("click", (e) => {
+    document
+      .querySelectorAll(".faculty-suggestions-dropdown, #preferredFacultySuggestions, #avoidFacultySuggestions")
+      .forEach((dd) => {
+        const container = dd.parentElement;
+        if (container && !container.contains(e.target)) {
+          dd.classList.add("hidden");
+        }
+      });
+  });
+
+  // Initialize Global Preferred and Avoid Faculty autocomplete
+  if (preferredFacultyInput && preferredFacultySuggestions) {
+    setupFacultyAutocomplete(preferredFacultyInput, preferredFacultySuggestions, null);
+  }
+  if (avoidFacultyInput && avoidFacultySuggestions) {
+    setupFacultyAutocomplete(avoidFacultyInput, avoidFacultySuggestions, null);
+  }
+
   function renderSelectedCourses() {
     selectedCoursesCount.textContent = `${state.selectedCourses.length} course${state.selectedCourses.length === 1 ? "" : "s"}`;
     if (state.selectedCourses.length === 0) {
@@ -297,7 +608,8 @@ document.addEventListener("DOMContentLoaded", () => {
       selectedCoursesContainer.appendChild(noCoursesPlaceholder);
       noCoursesPlaceholder.classList.remove("hidden");
       if (courseMandatorySlots) courseMandatorySlots.innerHTML = "";
-      if (courseFacultySlots) courseFacultySlots.innerHTML = `<p class="text-[11px] text-slate-500 italic">Add courses above to set specific faculty preferences per course.</p>`;
+      if (courseFacultySlots)
+        courseFacultySlots.innerHTML = `<p class="text-[11px] text-slate-500 italic">Add courses above to set specific faculty preferences per course.</p>`;
       return;
     }
 
@@ -331,32 +643,67 @@ document.addEventListener("DOMContentLoaded", () => {
       btn.addEventListener("click", () => openCourseInspector(btn.dataset.code));
     });
 
-    // Update mandatory section helper labels
+    // Save existing mandatory section values before re-rendering
+    const savedMandatory = {};
     if (courseMandatorySlots) {
+      courseMandatorySlots.querySelectorAll(".course-spec-mand").forEach((inp) => {
+        if (inp.dataset.code) savedMandatory[inp.dataset.code] = inp.value;
+      });
       courseMandatorySlots.innerHTML = state.selectedCourses
         .map(
           (code) => `
           <div class="flex items-center space-x-2 text-[11px]">
-            <span class="w-16 font-mono font-semibold text-brand-300">${code}:</span>
-            <input type="text" class="course-spec-mand px-2 py-1 bg-slate-900 border border-slate-700 rounded text-xs text-slate-100 placeholder-slate-500 w-full" data-code="${code}" placeholder="e.g. 01, 02 (optional)">
+            <span class="w-16 font-mono font-semibold text-brand-300 shrink-0">${code}:</span>
+            <input type="text" class="course-spec-mand px-2 py-1 bg-slate-900 border border-slate-700 rounded text-xs text-slate-100 placeholder-slate-500 w-full" data-code="${code}" placeholder="e.g. 01, 02 (optional)" value="${savedMandatory[code] || ""}">
           </div>
         `
         )
         .join("");
     }
 
-    // Update per-course faculty preference slots
+    // Save existing faculty preference values before re-rendering
+    const savedFaculty = {};
     if (courseFacultySlots) {
+      courseFacultySlots.querySelectorAll(".course-spec-faculty").forEach((inp) => {
+        if (inp.dataset.code) savedFaculty[inp.dataset.code] = inp.value;
+      });
+
       courseFacultySlots.innerHTML = state.selectedCourses
-        .map(
-          (code) => `
-          <div class="flex items-center space-x-2 text-[11px]">
-            <span class="w-16 font-mono font-semibold text-purple-300">${code}:</span>
-            <input type="text" class="course-spec-faculty px-2 py-1 bg-slate-900 border border-slate-700 rounded text-xs text-slate-100 placeholder-slate-500 w-full focus:outline-none focus:ring-1 focus:ring-purple-500" data-code="${code}" placeholder="e.g. AIB, TAZ (initials for ${code})">
+        .map((code) => {
+          const cObj = state.allCourses.find((c) => c.code.toUpperCase() === code.toUpperCase());
+          const facCount = cObj && cObj.faculties ? cObj.faculties.length : 0;
+          const facHint = facCount > 0 ? `${facCount} faculties available` : "Click for suggestions";
+
+          return `
+          <div class="faculty-slot-item relative">
+            <div class="flex items-center space-x-2 text-[11px]">
+              <span class="w-16 font-mono font-semibold text-purple-300 shrink-0">${code}:</span>
+              <div class="relative flex-1">
+                <input
+                  type="text"
+                  class="course-spec-faculty px-2.5 py-1.5 bg-slate-900 border border-slate-700 rounded-lg text-xs text-slate-100 placeholder-slate-500 w-full focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition"
+                  data-code="${code}"
+                  placeholder="e.g. AIB, TAZ (${facHint})"
+                  autocomplete="off"
+                  value="${savedFaculty[code] || ""}"
+                >
+                <div class="faculty-suggestions-dropdown hidden absolute top-full left-0 right-0 mt-1 max-h-52 overflow-y-auto bg-slate-900/95 backdrop-blur-md border border-purple-500/30 rounded-xl shadow-2xl z-50 divide-y divide-slate-800/80"></div>
+              </div>
+            </div>
           </div>
-        `
-        )
+        `;
+        })
         .join("");
+
+      // Setup autocomplete for each course slot
+      courseFacultySlots.querySelectorAll(".faculty-slot-item").forEach((item) => {
+        const inputEl = item.querySelector(".course-spec-faculty");
+        const dropdownEl = item.querySelector(".faculty-suggestions-dropdown");
+        const code = inputEl.dataset.code;
+        if (inputEl && dropdownEl && code) {
+          setupFacultyAutocomplete(inputEl, dropdownEl, code);
+        }
+      });
     }
   }
 
@@ -398,6 +745,8 @@ document.addEventListener("DOMContentLoaded", () => {
     avoidFacultyInput.value = "";
     customSkipTimesInput.value = "";
     document.querySelectorAll(".skip-slot-checkbox").forEach((cb) => (cb.checked = false));
+    document.querySelectorAll(".course-spec-faculty").forEach((inp) => (inp.value = ""));
+    document.querySelectorAll(".course-spec-mand").forEach((inp) => (inp.value = ""));
     primarySortSelect.value = "gap";
     secondarySortSelect.value = "none";
     maxResultsSlider.value = "30";

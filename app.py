@@ -83,11 +83,15 @@ class FeedCache:
                 continue
             title = (s.get("courseName") or "").strip()
             fac = (s.get("faculties") or "").strip()
-            if fac and fac != "TBA":
+            sec_name = str(s.get("sectionName") or "").strip()
+
+            clean_facs = []
+            if fac:
                 for f in re.split(r"[,/ ]+", fac):
                     f_clean = f.strip().upper()
-                    if f_clean and len(f_clean) >= 2:
+                    if f_clean and len(f_clean) >= 2 and f_clean not in ("TBA", "NONE", "N/A", "TBD"):
                         faculties_set.add(f_clean)
+                        clean_facs.append(f_clean)
 
             if code not in by_code:
                 by_code[code] = {
@@ -95,18 +99,24 @@ class FeedCache:
                     "title": title,
                     "sections_count": 0,
                     "faculties": set(),
+                    "faculty_sections": {},
                 }
             by_code[code]["sections_count"] += 1
-            if fac and fac != "TBA":
-                by_code[code]["faculties"].add(fac)
+            for f_clean in clean_facs:
+                by_code[code]["faculties"].add(f_clean)
+                by_code[code]["faculty_sections"].setdefault(f_clean, []).append(sec_name)
 
         summary = []
         for code, info in sorted(by_code.items()):
+            fac_sec_map = {
+                f: sorted(list(set(secs))) for f, secs in info["faculty_sections"].items()
+            }
             summary.append({
                 "code": code,
                 "title": info["title"],
                 "sections_count": info["sections_count"],
                 "faculties": sorted(info["faculties"]),
+                "faculty_sections": fac_sec_map,
             })
         self.courses_summary = summary
         self.faculties = sorted(faculties_set)
