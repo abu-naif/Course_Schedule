@@ -55,15 +55,31 @@ document.addEventListener("DOMContentLoaded", () => {
   const showingNotice = document.getElementById("showingNotice");
   const prevOptionBtn = document.getElementById("prevOptionBtn");
   const nextOptionBtn = document.getElementById("nextOptionBtn");
+  const sidebarPanel = document.getElementById("sidebarPanel");
+  const resultsPanel = document.getElementById("resultsPanel");
+  const toggleSidebarBtn = document.getElementById("toggleSidebarBtn");
+  const toggleFullscreenBtn = document.getElementById("toggleFullscreenBtn");
+  const toggleFullscreenText = document.getElementById("toggleFullscreenText");
+  const showSidebarFab = document.getElementById("showSidebarFab");
+
   const optionJumpInput = document.getElementById("optionJumpInput");
   const totalOptionsDisplay = document.getElementById("totalOptionsDisplay");
 
   const metricGap = document.getElementById("metricGap");
   const metricDays = document.getElementById("metricDays");
   const metricFaculty = document.getElementById("metricFaculty");
+  const timetableGrid = document.getElementById("timetableGrid");
   const timetableGridBody = document.getElementById("timetableGridBody");
   const sectionsDetailsTableBody = document.getElementById("sectionsDetailsTableBody");
+  const examsDetailsTableBody = document.getElementById("examsDetailsTableBody");
   const engineLogsPre = document.getElementById("engineLogsPre");
+
+  const routineScrollContainer = document.getElementById("routineScrollContainer");
+  const routineZoomWrapper = document.getElementById("routineZoomWrapper");
+  const routineZoomOutBtn = document.getElementById("routineZoomOutBtn");
+  const routineZoomInBtn = document.getElementById("routineZoomInBtn");
+  const routineZoomSelect = document.getElementById("routineZoomSelect");
+  const routineZoomResetBtn = document.getElementById("routineZoomResetBtn");
 
   const copyScheduleBtn = document.getElementById("copyScheduleBtn");
   const copyBtnText = document.getElementById("copyBtnText");
@@ -558,20 +574,22 @@ document.addEventListener("DOMContentLoaded", () => {
     const current = combos[idx];
     const total = combos.length;
 
-    showingNotice.textContent = `Option ${idx + 1} of ${total}`;
-    optionJumpInput.value = idx + 1;
-    optionJumpInput.max = total;
-    totalOptionsDisplay.textContent = `/ ${total}`;
+    if (showingNotice) showingNotice.textContent = `Option ${idx + 1} of ${total}`;
+    if (optionJumpInput) {
+      optionJumpInput.value = idx + 1;
+      optionJumpInput.max = total;
+    }
+    if (totalOptionsDisplay) totalOptionsDisplay.textContent = `/ ${total}`;
 
-    prevOptionBtn.disabled = idx === 0;
-    nextOptionBtn.disabled = idx === total - 1;
+    if (prevOptionBtn) prevOptionBtn.disabled = idx === 0;
+    if (nextOptionBtn) nextOptionBtn.disabled = idx === total - 1;
 
     // Metrics
-    metricGap.textContent = `${current.stats.gap} mins`;
-    metricDays.textContent = `${current.stats.days} Days (${current.stats.days_list ? current.stats.days_list.join(", ") : ""})`;
-    metricFaculty.textContent = `${current.stats.faculty_matches} match(es)`;
+    if (metricGap) metricGap.textContent = `${current.stats.gap} mins`;
+    if (metricDays) metricDays.textContent = `${current.stats.days} Days (${current.stats.days_list ? current.stats.days_list.join(", ") : ""})`;
+    if (metricFaculty) metricFaculty.textContent = `${current.stats.faculty_matches} match(es)`;
 
-    // Render Weekly Grid
+    // Render Weekly Routine Matrix (Matching PDF Layout)
     const dayOrder = ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"];
 
     // Build course to color index map
@@ -580,100 +598,233 @@ document.addEventListener("DOMContentLoaded", () => {
       courseColorMap[code] = i % 7;
     });
 
-    timetableGridBody.innerHTML = current.grid
-      .map((row) => {
-        const timeCell = `<td class="p-2 font-mono text-[11px] text-slate-400 whitespace-nowrap bg-slate-950/40">${row.time_label}</td>`;
-        const dayCells = dayOrder
-          .map((day) => {
-            const items = row.days[day] || [];
-            if (items.length === 0) {
-              return `<td class="p-1 text-center border-l border-slate-800/60 bg-slate-900/30"></td>`;
-            }
-            const blockContent = items
-              .map((it) => {
-                const isLab = it.type === "Lab" || it.course.endsWith("L");
-                const colorIdx = courseColorMap[it.course] !== undefined ? courseColorMap[it.course] : 0;
-                return `
-                <div class="timetable-block p-1.5 rounded-lg border text-[11px] font-medium leading-tight course-color-${colorIdx} mb-1">
-                  <div class="flex items-center justify-between space-x-1">
-                    <span class="font-bold font-mono">${it.course}</span>
-                    <span class="text-[9px] px-1 rounded ${isLab ? "bg-amber-500/20 text-amber-300" : "bg-brand-500/20 text-brand-300"}">${isLab ? "LAB" : "SEC " + it.section}</span>
+    if (timetableGridBody) {
+      timetableGridBody.innerHTML = current.grid
+        .map((row, rIdx) => {
+          const bgClass = rIdx % 2 === 0 ? "bg-slate-900/60" : "bg-slate-950/40";
+          const timeCell = `<td class="p-2 font-bold font-mono text-[10.5px] text-slate-300 border-r border-slate-700 whitespace-nowrap bg-[#16324f]/30 leading-snug">${row.time_label}</td>`;
+          const dayCells = dayOrder
+            .map((day) => {
+              const items = row.days[day] || [];
+              if (items.length === 0) {
+                return `<td class="p-1 border-r border-slate-800/80 text-center"></td>`;
+              }
+              const blockContent = items
+                .map((it) => {
+                  const isLab = it.type === "Lab" || it.course.endsWith("L");
+                  const colorIdx = courseColorMap[it.course] !== undefined ? courseColorMap[it.course] : 0;
+                  return `
+                  <div class="timetable-block p-1.5 rounded-lg border text-xs font-medium leading-snug course-color-${colorIdx} mb-1 shadow-sm">
+                    <div class="flex items-center justify-between space-x-1">
+                      <span class="font-bold font-mono text-xs">${it.course}</span>
+                      <span class="text-[9px] px-1.5 py-0.2 rounded font-semibold ${isLab ? "bg-amber-500/20 text-amber-300 border border-amber-500/30" : "bg-brand-500/20 text-brand-300 border border-brand-500/30"}">
+                        ${isLab ? "LAB" : "Sec " + it.section}
+                      </span>
+                    </div>
+                    <div class="text-[10px] opacity-90 mt-0.5 flex items-center justify-between">
+                      <span class="font-medium text-slate-300">${it.faculty || "TBA"}</span>
+                      <span class="font-mono text-slate-400">🏢 ${it.room || "TBA"}</span>
+                    </div>
                   </div>
-                  <div class="text-[10px] opacity-90 mt-0.5 flex items-center justify-between">
-                    <span>${it.faculty || "TBA"}</span>
-                    <span>${it.room || "TBA"}</span>
-                  </div>
-                </div>
-              `;
-              })
-              .join("");
-            return `<td class="p-1 border-l border-slate-800/60 align-top">${blockContent}</td>`;
-          })
-          .join("");
+                `;
+                })
+                .join("");
+              return `<td class="p-1 border-r border-slate-800/80 align-top">${blockContent}</td>`;
+            })
+            .join("");
 
-        return `<tr>${timeCell}${dayCells}</tr>`;
-      })
-      .join("");
+          return `<tr class="${bgClass}">${timeCell}${dayCells}</tr>`;
+        })
+        .join("");
+    }
 
-    // Render Selected Sections Breakdown Table
-    sectionsDetailsTableBody.innerHTML = current.sections
-      .map((s) => {
-        const seatsClass = s.remaining !== null && s.remaining <= 0 ? "text-rose-400" : "text-emerald-400";
-        const seatsText = s.remaining !== null ? `${s.remaining} left` : "TBA";
-        const examText = s.exam && s.exam.raw ? s.exam.raw : "N/A";
-        return `
-        <tr class="hover:bg-slate-800/40 transition">
-          <td class="py-2 font-bold font-mono text-brand-300">${s.courseCode}</td>
-          <td class="py-2 font-semibold text-slate-200">Sec ${s.sectionName}</td>
-          <td class="py-2 text-slate-200">${s.faculty} ${s.is_pref_match ? '<span class="text-amber-400">★</span>' : ""}</td>
-          <td class="py-2 text-slate-400">${s.room || "TBA"}</td>
-          <td class="py-2 ${seatsClass}">${seatsText}</td>
-          <td class="py-2 text-slate-400 font-mono text-[11px]">${examText}</td>
-        </tr>
-      `;
-      })
-      .join("");
+    // Render Section Details Table
+    if (sectionsDetailsTableBody) {
+      sectionsDetailsTableBody.innerHTML = current.sections
+        .map((s, rIdx) => {
+          const bgClass = rIdx % 2 === 0 ? "bg-slate-900/40" : "bg-slate-800/20";
+          const courseName = s.courseCode || s.course_code || s.course || "-";
+          const cap = s.capacity !== undefined && s.capacity !== null ? s.capacity : null;
+          const cons = s.consumedSeat !== undefined && s.consumedSeat !== null ? s.consumedSeat : null;
+          let rem = s.remaining;
+          if ((rem === null || rem === undefined) && cap !== null && cons !== null) {
+            rem = cap - cons;
+          }
+          const seatsClass = rem !== null && rem <= 0 ? "text-rose-400 font-semibold" : "text-emerald-400 font-medium";
+          const seatsText = rem !== null ? (cap !== null ? `${rem} left (${cons}/${cap})` : `${rem} seats left`) : "Available";
+          const roomText = s.room && s.room !== "None" && s.room !== "null" ? s.room : "TBA";
+          const facultyText = s.faculty && s.faculty !== "None" ? s.faculty : "TBA";
+
+          return `
+          <tr class="${bgClass} hover:bg-slate-800/50 transition">
+            <td class="p-1.5 font-bold font-mono text-brand-300">${courseName} ${s.is_mandatory ? '<span class="text-[9px] px-1 py-0.2 rounded bg-brand-500/30 text-brand-300 border border-brand-500/40">Mand</span>' : ''}</td>
+            <td class="p-1.5 font-semibold text-slate-200">Sec ${s.sectionName || "?"}</td>
+            <td class="p-1.5 text-slate-200">${facultyText} ${s.is_pref_match ? '<span class="text-amber-400 font-bold" title="Preferred Faculty">★</span>' : ''}</td>
+            <td class="p-1.5 text-slate-300 font-mono text-[10px]">${roomText}</td>
+            <td class="p-1.5 ${seatsClass}">${seatsText}</td>
+          </tr>
+        `;
+        })
+        .join("");
+    }
+
+    // Render Final Exam Schedule Table
+    if (examsDetailsTableBody) {
+      examsDetailsTableBody.innerHTML = current.sections
+        .map((s, rIdx) => {
+          const bgClass = rIdx % 2 === 0 ? "bg-slate-900/40" : "bg-slate-800/20";
+          const courseName = s.courseCode || s.course_code || s.course || "-";
+          const examText = s.exam && s.exam.raw && s.exam.raw !== "None" && s.exam.raw !== "null" ? s.exam.raw : "No clash recorded (N/A)";
+          return `
+          <tr class="${bgClass} hover:bg-slate-800/50 transition">
+            <td class="p-2 font-bold font-mono text-brand-300">${courseName}</td>
+            <td class="p-2 font-semibold text-slate-200">Sec ${s.sectionName || "?"}</td>
+            <td class="p-2 text-slate-300 font-mono text-xs">${examText}</td>
+          </tr>
+        `;
+        })
+        .join("");
+    }
 
     lucide.createIcons();
+    applyRoutineZoom(currentRoutineZoom);
   }
 
   // Carousel controls
-  prevOptionBtn.addEventListener("click", () => {
-    if (state.currentIndex > 0) {
-      state.currentIndex--;
-      renderCurrentSchedule();
-    }
-  });
-
-  nextOptionBtn.addEventListener("click", () => {
-    if (state.currentIndex < state.currentCombinations.length - 1) {
-      state.currentIndex++;
-      renderCurrentSchedule();
-    }
-  });
-
-  optionJumpInput.addEventListener("change", (e) => {
-    const val = parseInt(e.target.value, 10);
-    if (!isNaN(val) && val >= 1 && val <= state.currentCombinations.length) {
-      state.currentIndex = val - 1;
-      renderCurrentSchedule();
-    } else {
-      e.target.value = state.currentIndex + 1;
-    }
-  });
-
-  // Keyboard navigation
-  document.addEventListener("keydown", (e) => {
-    if (state.currentCombinations.length > 0 && !["INPUT", "TEXTAREA"].includes(document.activeElement.tagName)) {
-      if (e.key === "ArrowLeft" && state.currentIndex > 0) {
+  if (prevOptionBtn) {
+    prevOptionBtn.addEventListener("click", () => {
+      if (state.currentIndex > 0) {
         state.currentIndex--;
         renderCurrentSchedule();
-      } else if (e.key === "ArrowRight" && state.currentIndex < state.currentCombinations.length - 1) {
+      }
+    });
+  }
+
+  if (nextOptionBtn) {
+    nextOptionBtn.addEventListener("click", () => {
+      if (state.currentIndex < state.currentCombinations.length - 1) {
         state.currentIndex++;
         renderCurrentSchedule();
       }
+    });
+  }
+
+  if (optionJumpInput) {
+    optionJumpInput.addEventListener("change", (e) => {
+      const val = parseInt(e.target.value, 10);
+      if (!isNaN(val) && val >= 1 && val <= state.currentCombinations.length) {
+        state.currentIndex = val - 1;
+        renderCurrentSchedule();
+      } else {
+        e.target.value = state.currentIndex + 1;
+      }
+    });
+  }
+
+  // -----------------------------------------------------------------------
+  // Routine Zoom Controls
+  // -----------------------------------------------------------------------
+  let currentRoutineZoom = 0.85;
+
+  function applyRoutineZoom(zoomLevel) {
+    currentRoutineZoom = Math.min(Math.max(zoomLevel, 0.5), 1.5);
+    if (routineZoomWrapper) {
+      routineZoomWrapper.style.transform = `scale(${currentRoutineZoom})`;
+      routineZoomWrapper.style.transformOrigin = "top left";
+      routineZoomWrapper.style.width = `${100 / currentRoutineZoom}%`;
+
+      // Eliminate dead vertical space from transform scale
+      setTimeout(() => {
+        if (timetableGrid && routineScrollContainer) {
+          const h = timetableGrid.offsetHeight;
+          if (h > 0) {
+            routineScrollContainer.style.height = `${Math.ceil(h * currentRoutineZoom) + 4}px`;
+          }
+        }
+      }, 20);
     }
-  });
+    if (routineZoomSelect) {
+      for (const opt of routineZoomSelect.options) {
+        if (Math.abs(parseFloat(opt.value) - currentRoutineZoom) < 0.04) {
+          routineZoomSelect.value = opt.value;
+          break;
+        }
+      }
+    }
+  }
+
+  if (routineZoomOutBtn) {
+    routineZoomOutBtn.addEventListener("click", () => {
+      applyRoutineZoom(currentRoutineZoom - 0.1);
+    });
+  }
+
+  if (routineZoomInBtn) {
+    routineZoomInBtn.addEventListener("click", () => {
+      applyRoutineZoom(currentRoutineZoom + 0.1);
+    });
+  }
+
+  if (routineZoomSelect) {
+    routineZoomSelect.addEventListener("change", (e) => {
+      applyRoutineZoom(parseFloat(e.target.value));
+    });
+  }
+
+  if (routineZoomResetBtn) {
+    routineZoomResetBtn.addEventListener("click", () => {
+      applyRoutineZoom(0.85);
+    });
+  }
+
+  // Apply default comfortable 85% zoom on load
+  applyRoutineZoom(0.85);
+
+  // -----------------------------------------------------------------------
+  // Sidebar Hide / Unhide (3-Dots Fullscreen Routine Toggle)
+  // -----------------------------------------------------------------------
+  let isSidebarHidden = false;
+
+  function toggleSidebar(hide = null) {
+    if (hide !== null) {
+      isSidebarHidden = hide;
+    } else {
+      isSidebarHidden = !isSidebarHidden;
+    }
+
+    if (isSidebarHidden) {
+      if (sidebarPanel) sidebarPanel.classList.add("hidden");
+      if (resultsPanel) {
+        resultsPanel.classList.remove("lg:col-span-7");
+        resultsPanel.classList.add("lg:col-span-12");
+      }
+      if (showSidebarFab) showSidebarFab.classList.remove("hidden");
+      if (toggleFullscreenText) toggleFullscreenText.textContent = "Exit Fullscreen";
+      showToast("Course Selection hidden. Routine is now Full Screen!", "info");
+    } else {
+      if (sidebarPanel) sidebarPanel.classList.remove("hidden");
+      if (resultsPanel) {
+        resultsPanel.classList.remove("lg:col-span-12");
+        resultsPanel.classList.add("lg:col-span-7");
+      }
+      if (showSidebarFab) showSidebarFab.classList.add("hidden");
+      if (toggleFullscreenText) toggleFullscreenText.textContent = "Fullscreen";
+      showToast("Course Selection panel restored.", "info");
+    }
+    lucide.createIcons();
+  }
+
+  if (toggleSidebarBtn) {
+    toggleSidebarBtn.addEventListener("click", () => toggleSidebar(true));
+  }
+
+  if (toggleFullscreenBtn) {
+    toggleFullscreenBtn.addEventListener("click", () => toggleSidebar());
+  }
+
+  if (showSidebarFab) {
+    showSidebarFab.addEventListener("click", () => toggleSidebar(false));
+  }
 
   // -----------------------------------------------------------------------
   // Export Handlers

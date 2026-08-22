@@ -160,18 +160,35 @@ def serialize_exam(exam: Optional[Dict[str, Any]]) -> Dict[str, Any]:
 
 
 def serialize_section_row(r: Dict[str, Any]) -> Dict[str, Any]:
+    code = r.get("course_code") or r.get("courseCode") or ""
+    all_meetings = r.get("all_meetings", [])
+    
+    # Extract unique room numbers from meetings
+    rooms = []
+    for m in all_meetings:
+        room_val = getattr(m, "room", None)
+        if room_val and str(room_val).strip() and str(room_val).strip() != "-":
+            rooms.append(str(room_val).strip())
+    room_str = ", ".join(dict.fromkeys(rooms)) if rooms else "TBA"
+
+    cap = r.get("capacity")
+    cons = r.get("consumedSeat")
+    rem = r.get("remaining")
+    if rem is None and isinstance(cap, int) and isinstance(cons, int):
+        rem = cap - cons
+
     return {
-        "courseCode": r.get("courseCode"),
-        "courseTitle": r.get("courseTitle"),
-        "sectionName": r.get("sectionName"),
-        "faculty": r.get("faculty") or "TBA",
-        "capacity": r.get("capacity"),
-        "consumedSeat": r.get("consumedSeat"),
-        "remaining": r.get("remaining"),
-        "room": r.get("room") or "TBA",
+        "courseCode": code,
+        "course_code": code,
+        "sectionName": r.get("sectionName") or "?",
+        "faculty": (r.get("faculty") or "TBA").strip() or "TBA",
+        "capacity": cap,
+        "consumedSeat": cons,
+        "remaining": rem,
+        "room": room_str,
         "theory_meetings": [serialize_meeting(m) for m in r.get("theory_meetings", [])],
         "lab_meetings": [serialize_meeting(m) for m in r.get("lab_meetings", [])],
-        "all_meetings": [serialize_meeting(m) for m in r.get("all_meetings", [])],
+        "all_meetings": [serialize_meeting(m) for m in all_meetings],
         "exam": serialize_exam(r.get("exam")),
         "is_pref_match": bool(r.get("_pref_match", False)),
         "is_mandatory": bool(r.get("_mandatory_match", False)),
@@ -179,13 +196,29 @@ def serialize_section_row(r: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def build_json_weekly_grid(combo: tuple) -> List[Dict[str, Any]]:
-    """Builds a structured grid array suitable for front-end rendering."""
+    """Builds a structured grid array matching the exact routine table of the PDF."""
     grid_rows = sc.build_weekly_grid(combo)
     result = []
     for time_label, day_map in grid_rows:
         day_dict = {}
         for day in sc.DAY_ORDER:
-            cell_items = day_map.get(day, [])
+            cell_items = []
+            for item in day_map.get(day, []):
+                if isinstance(item, str):
+                    parts = item.split("-")
+                    course = parts[0] if len(parts) > 0 else ""
+                    section = parts[1] if len(parts) > 1 else ""
+                    faculty = parts[2] if len(parts) > 2 else "TBA"
+                    room = "-".join(parts[3:]) if len(parts) > 3 else "TBA"
+                    cell_items.append({
+                        "course": course,
+                        "section": section,
+                        "faculty": faculty,
+                        "room": room,
+                        "type": "Lab" if (course.endswith("L") or "LAB" in course.upper()) else "Theory",
+                    })
+                elif isinstance(item, dict):
+                    cell_items.append(item)
             day_dict[day] = cell_items
         result.append({
             "time_label": time_label,
@@ -471,6 +504,39 @@ def export_pdf(req: GenerateRequest):
         content=content,
         media_type="application/pdf",
         headers={"Content-Disposition": f"attachment; filename={filename}"},
+    )
+
+
+@app.post("/api/preview/pdf")
+def preview_pdf(req: GenerateRequest):
+    with tempfile.TemporaryDirectory() as temp_dir:
+        res = sc.run_combinator(
+            courses=req.courses,
+            only_open=req.only_open,
+            target_days=req.target_days,
+            exact_days=req.exact_days,
+            prefer_faculty=req.prefer_faculty,
+            avoid_faculty=req.avoid_faculty,
+            mandatory_preferred_faculty=req.mandatory_preferred_faculty,
+            mandatory_sections=req.mandatory_sections,
+            skip_times=req.skip_times,
+            sort_by=req.sort_by + (f",{req.secondary_sort_by}" if req.secondary_sort_by and req.secondary_sort_by != "none" else ""),
+            max_results=req.max_results,
+            output_format="pdf",
+            output_dir=temp_dir,
+            log=lambda _: None,
+        )
+        if not res["output_paths"]:
+            raise HTTPException(status_code=400, detail="No conflict-free schedules found to preview.")
+
+        pdf_path = res["output_paths"][0]
+        content = pdf_path.read_bytes()
+        filename = pdf_path.name
+
+    return Response(
+        content=content,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"inline; filename={filename}"},
     )
 
 
