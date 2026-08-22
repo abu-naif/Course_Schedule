@@ -39,8 +39,6 @@ document.addEventListener("DOMContentLoaded", () => {
   const targetDaysValue = document.getElementById("targetDaysValue");
   const exactDaysCheckbox = document.getElementById("exactDaysCheckbox");
   const mandatorySectionsInput = document.getElementById("mandatorySectionsInput");
-  const preferredFacultyInput = document.getElementById("preferredFacultyInput");
-  const preferredFacultySuggestions = document.getElementById("preferredFacultySuggestions");
   const mandatoryFacultyCheckbox = document.getElementById("mandatoryFacultyCheckbox");
   const avoidFacultyInput = document.getElementById("avoidFacultyInput");
   const avoidFacultySuggestions = document.getElementById("avoidFacultySuggestions");
@@ -927,7 +925,7 @@ document.addEventListener("DOMContentLoaded", () => {
   document.addEventListener("click", (e) => {
     document
       .querySelectorAll(
-        ".faculty-suggestions-dropdown, #preferredFacultySuggestions, #avoidFacultySuggestions, #skipTimesSuggestions"
+        ".faculty-suggestions-dropdown, #avoidFacultySuggestions, #skipTimesSuggestions"
       )
       .forEach((dd) => {
         const container = dd.parentElement;
@@ -937,10 +935,7 @@ document.addEventListener("DOMContentLoaded", () => {
       });
   });
 
-  // Initialize Global Preferred and Avoid Faculty autocomplete
-  if (preferredFacultyInput && preferredFacultySuggestions) {
-    setupFacultyAutocomplete(preferredFacultyInput, preferredFacultySuggestions, null);
-  }
+  // Initialize Avoid Faculty autocomplete
   if (avoidFacultyInput && avoidFacultySuggestions) {
     setupFacultyAutocomplete(avoidFacultyInput, avoidFacultySuggestions, null);
   }
@@ -1088,7 +1083,6 @@ document.addEventListener("DOMContentLoaded", () => {
     state.targetDays = 0;
     targetDaysValue.textContent = "Any";
     mandatorySectionsInput.value = "";
-    preferredFacultyInput.value = "";
     mandatoryFacultyCheckbox.checked = false;
     avoidFacultyInput.value = "";
     state.skipTimes = [];
@@ -1189,13 +1183,8 @@ document.addEventListener("DOMContentLoaded", () => {
       });
     }
 
-    // Collect faculty preferences (Global + Per-Course)
+    // Collect per-course faculty preferences
     const preferFacultyTokens = [];
-    if (preferredFacultyInput && preferredFacultyInput.value.trim()) {
-      preferredFacultyInput.value.trim().split(/[,; ]+/).forEach((tok) => {
-        if (tok.trim()) preferFacultyTokens.push(tok.trim());
-      });
-    }
     document.querySelectorAll(".course-spec-faculty").forEach((inp) => {
       const code = inp.dataset.code;
       const val = inp.value.trim();

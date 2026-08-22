@@ -57,7 +57,6 @@ html:not(.dark) .border-slate-800 {
 }
 
 html:not(.dark) .faculty-suggestions-dropdown,
-html:not(.dark) #preferredFacultySuggestions,
 html:not(.dark) #avoidFacultySuggestions,
 html:not(.dark) #skipTimesSuggestions,
 html:not(.dark) #courseSuggestions {
