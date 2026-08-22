@@ -385,26 +385,26 @@
           <div class="grid grid-cols-2 gap-3">
             <div>
               <label class="block text-xs font-medium text-slate-300 mb-1">Primary Sort:</label>
-              <select id="primarySortSelect" class="w-full px-2.5 py-2 bg-slate-900 border border-slate-700 rounded-lg text-xs text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-500">
-                <option value="gap" selected>Least idle gap (Compact)</option>
-                <option value="days">Fewest days used</option>
+              <select id="primarySortSelect" class="w-full px-2.5 py-2 bg-slate-900 border border-slate-700 rounded-lg text-xs text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-500 font-medium">
+                <option value="faculty" selected>Preferred faculty matches</option>
+                <option value="days">Less days a week</option>
+                <option value="gap">Least idle gap (Compact)</option>
                 <option value="target_days">Closest to desired days</option>
                 <option value="earliest">Earliest class start</option>
                 <option value="latest">Latest class end</option>
-                <option value="faculty">Preferred faculty matches</option>
                 <option value="none">No sorting</option>
               </select>
             </div>
             <div>
               <label class="block text-xs font-medium text-slate-300 mb-1">Secondary Sort:</label>
-              <select id="secondarySortSelect" class="w-full px-2.5 py-2 bg-slate-900 border border-slate-700 rounded-lg text-xs text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-500">
-                <option value="none" selected>(None)</option>
+              <select id="secondarySortSelect" class="w-full px-2.5 py-2 bg-slate-900 border border-slate-700 rounded-lg text-xs text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-500 font-medium">
+                <option value="days" selected>Less days a week</option>
+                <option value="faculty">Preferred faculty matches</option>
                 <option value="gap">Least idle gap</option>
-                <option value="days">Fewest days used</option>
                 <option value="target_days">Closest to desired days</option>
                 <option value="earliest">Earliest start</option>
                 <option value="latest">Latest end</option>
-                <option value="faculty">Faculty matches</option>
+                <option value="none">(None)</option>
               </select>
             </div>
           </div>

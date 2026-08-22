@@ -165,8 +165,8 @@ class GenerateRequest(BaseModel):
     mandatory_preferred_faculty: bool = False
     mandatory_sections: Optional[List[str]] = None
     skip_times: Optional[List[str]] = None
-    sort_by: str = "gap"
-    secondary_sort_by: Optional[str] = None
+    sort_by: str = "faculty"
+    secondary_sort_by: Optional[str] = "days"
     max_results: int = 30
 
 

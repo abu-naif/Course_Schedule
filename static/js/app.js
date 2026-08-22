@@ -1091,8 +1091,8 @@ document.addEventListener("DOMContentLoaded", () => {
     renderSkipRules();
     document.querySelectorAll(".course-spec-faculty").forEach((inp) => (inp.value = ""));
     document.querySelectorAll(".course-spec-mand").forEach((inp) => (inp.value = ""));
-    primarySortSelect.value = "gap";
-    secondarySortSelect.value = "none";
+    primarySortSelect.value = "faculty";
+    secondarySortSelect.value = "days";
     maxResultsSlider.value = "30";
     maxResultsValue.textContent = "30";
     showToast("Preferences reset to default.", "info");
