@@ -1,0 +1,78 @@
+========================================================================
+                      COURSE COMBINATOR GUI
+========================================================================
+
+1. REQUIRED FILES IN THIS FOLDER
+------------------------------------------------------------------------
+Make sure the following files exist in this folder:
+  - schedule_gui.py          (Main GUI application)
+  - schedule_combinator.py   (Core engine)
+  - prepreg_scraper.py       (Data scraper)
+  - requirements.txt         (Dependencies)
+  - run.sh                   (One-click launcher for macOS/Linux)
+  - run.bat                  (One-click launcher for Windows)
+  - run.txt                  (This instruction manual)
+
+
+2. PREREQUISITES
+------------------------------------------------------------------------
+- Python 3.8 or higher must be installed on your computer.
+  Download from: https://www.python.org/downloads/
+
+* Important for Windows users:
+  During Python installation, make sure to check the box:
+  "Add Python to PATH"
+
+* Important for Linux (Ubuntu/Debian) users:
+  If Tkinter is missing, run:
+  sudo apt install python3-tk
+
+
+3. HOW TO RUN
+------------------------------------------------------------------------
+[macOS / Linux]
+  - Option A: Double-click 'run.sh'
+  - Option B: Open terminal in this folder and run:
+      ./run.sh
+
+[Windows]
+  - Double-click 'run.bat'
+
+[Manual Run (Any OS)]
+  1. Open terminal/command prompt in this folder.
+  2. Create a virtual environment:
+      python3 -m venv venv
+  3. Activate the virtual environment:
+      - macOS/Linux: source venv/bin/activate
+      - Windows:     venv\Scripts\activate.bat
+  4. Install requirements:
+      pip install -r requirements.txt
+  5. Run the GUI:
+      python schedule_gui.py
+
+
+4. FEATURES & USAGE TIPS
+------------------------------------------------------------------------
+- Faculty Preferences & Filters:
+    * Prefer Faculty: Ranks matching sections higher when sorting.
+    * Mandatory Faculty from Pref (New): Hard filter that drops all sections
+      for a course unless they are taught by one of your preferred faculty.
+    * Avoid Faculty: Drops specified faculty sections entirely across courses.
+
+- Skip Class Times:
+    * Check common slots to avoid (08:00 AM, 05:00 PM, 06:30 PM, 08:00 PM).
+    * Or type custom skip times/days in the Custom Skip Times box:
+        e.g.  08:00 AM - 09:20 AM, Sun 05:00 PM - 06:20 PM, 08:00 AM - 11:00 AM
+
+- Day-Count Filtering:
+    * Filter combinations by desired number of class days per week.
+
+
+5. WHAT THE AUTOMATIC LAUNCHERS DO
+------------------------------------------------------------------------
+When you run 'run.sh' or 'run.bat', the script will:
+  1. Check for Python 3.
+  2. Create a virtual environment ('venv') automatically if missing.
+  3. Install all required dependencies from 'requirements.txt'.
+  4. Launch the Course Combinator GUI window immediately.
+========================================================================

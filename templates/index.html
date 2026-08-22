@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BracU Course Combinator | Intelligent Schedule Planner</title>
+  <meta name="description" content="Conflict-free schedule planner and course combination generator for BRAC University students.">
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#eef2ff',
+              100: '#e0e7ff',
+              200: '#c7d2fe',
+              300: '#a5b4fc',
+              400: '#818cf8',
+              500: '#6366f1',
+              600: '#4f46e5',
+              700: '#4338ca',
+              800: '#3730a3',
+              900: '#312e81',
+            },
+            dark: {
+              bg: '#0f172a',
+              card: '#1e293b',
+              border: '#334155',
+              hover: '#2d3b4f'
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <!-- Custom Styles -->
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col font-sans transition-colors duration-200 antialiased selection:bg-brand-500 selection:text-white">
+
+  <!-- ==================== HEADER NAVBAR ==================== -->
+  <header class="sticky top-0 z-40 bg-slate-900/80 backdrop-blur-md border-b border-slate-800">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      
+      <!-- Brand Logo -->
+      <div class="flex items-center space-x-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-600 to-cyan-500 flex items-center justify-center shadow-lg shadow-brand-500/20">
+          <i data-lucide="calendar-range" class="w-5 h-5 text-white"></i>
+        </div>
+        <div>
+          <div class="flex items-center space-x-2">
+            <span class="font-bold text-lg tracking-tight bg-gradient-to-r from-white via-slate-100 to-slate-400 bg-clip-text text-transparent">
+              Course Combinator
+            </span>
+            <span class="text-xs px-2 py-0.5 rounded-full bg-brand-500/20 text-brand-300 font-medium border border-brand-500/30">
+              Web v2.0
+            </span>
+          </div>
+          <p class="text-xs text-slate-400">BracU Conflict-Free Schedule Generator</p>
+        </div>
+      </div>
+
+      <!-- Right Controls -->
+      <div class="flex items-center space-x-3">
+        <!-- Live Feed Status Badge -->
+        <div id="feedStatusBadge" class="hidden sm:flex items-center space-x-2 px-3 py-1.5 rounded-lg bg-slate-800/80 border border-slate-700/60 text-xs">
+          <span class="relative flex h-2 w-2">
+            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+            <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+          </span>
+          <span id="feedStatusText" class="text-slate-300">Syncing live feed...</span>
+          <button id="refreshFeedBtn" title="Refresh live feed data" class="ml-1 text-slate-400 hover:text-white transition">
+            <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+          </button>
+        </div>
+
+        <!-- Help Modal Button -->
+        <button id="openHelpBtn" class="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 hover:text-white transition" title="User Guide & Tips">
+          <i data-lucide="help-circle" class="w-5 h-5"></i>
+        </button>
+
+        <!-- Theme Toggle Button -->
+        <button id="themeToggleBtn" class="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 hover:text-white transition" title="Toggle Light/Dark Theme">
+          <i data-lucide="sun" id="themeIconSun" class="w-5 h-5 hidden"></i>
+          <i data-lucide="moon" id="themeIconMoon" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+    </div>
+  </header>
+
+  <!-- ==================== MAIN CONTENT CONTAINER ==================== -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+      
+      <!-- ==================== LEFT COLUMN: CONTROLS & INPUTS (5 COLS) ==================== -->
+      <div class="lg:col-span-5 space-y-5">
+        
+        <!-- CARD 1: Course Selection -->
+        <div class="bg-slate-800/80 backdrop-blur border border-slate-700/80 rounded-2xl p-5 shadow-xl">
+          <div class="flex items-center justify-between mb-3">
+            <div class="flex items-center space-x-2">
+              <i data-lucide="book-open" class="w-5 h-5 text-brand-400"></i>
+              <h2 class="font-semibold text-base text-white">Course Selection</h2>
+            </div>
+            <span id="selectedCoursesCount" class="text-xs px-2 py-0.5 rounded-full bg-slate-700 text-slate-300">
+              0 courses
+            </span>
+          </div>
+
+          <!-- Course Search Input with Autocomplete -->
+          <div class="relative">
+            <div class="relative flex items-center">
+              <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 pointer-events-none"></i>
+              <input
+                type="text"
+                id="courseInput"
+                placeholder="Search code or name (e.g. CSE110, MAT110, Physics)..."
+                autocomplete="off"
+                class="w-full pl-9 pr-20 py-2.5 bg-slate-900 border border-slate-700 rounded-xl text-sm text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition"
+              >
+              <button
+                id="addCourseBtn"
+                class="absolute right-1.5 px-3 py-1 bg-brand-600 hover:bg-brand-500 text-white text-xs font-medium rounded-lg shadow transition"
+              >
+                Add
+              </button>
+            </div>
+
+            <!-- Autocomplete Dropdown List -->
+            <div id="courseSuggestions" class="hidden absolute top-full left-0 right-0 mt-1 max-h-60 overflow-y-auto bg-slate-900 border border-slate-700 rounded-xl shadow-2xl z-50 divide-y divide-slate-800"></div>
+          </div>
+
+          <!-- Quick Suggestion Buttons -->
+          <div class="mt-3">
+            <p class="text-xs text-slate-400 mb-1.5 flex items-center space-x-1">
+              <i data-lucide="sparkles" class="w-3.5 h-3.5 text-amber-400"></i>
+              <span>Popular core courses:</span>
+            </p>
+            <div class="flex flex-wrap gap-1.5">
+              <button class="quick-add-btn text-xs px-2.5 py-1 rounded-lg bg-slate-700/60 hover:bg-slate-700 text-slate-200 border border-slate-600/60 transition" data-code="CSE110">CSE110</button>
+              <button class="quick-add-btn text-xs px-2.5 py-1 rounded-lg bg-slate-700/60 hover:bg-slate-700 text-slate-200 border border-slate-600/60 transition" data-code="CSE220">CSE220</button>
+              <button class="quick-add-btn text-xs px-2.5 py-1 rounded-lg bg-slate-700/60 hover:bg-slate-700 text-slate-200 border border-slate-600/60 transition" data-code="MAT110">MAT110</button>
+              <button class="quick-add-btn text-xs px-2.5 py-1 rounded-lg bg-slate-700/60 hover:bg-slate-700 text-slate-200 border border-slate-600/60 transition" data-code="ENG101">ENG101</button>
+              <button class="quick-add-btn text-xs px-2.5 py-1 rounded-lg bg-slate-700/60 hover:bg-slate-700 text-slate-200 border border-slate-600/60 transition" data-code="PHY111">PHY111</button>
+              <button class="quick-add-btn text-xs px-2.5 py-1 rounded-lg bg-slate-700/60 hover:bg-slate-700 text-slate-200 border border-slate-600/60 transition" data-code="CSE370">CSE370</button>
+            </div>
+          </div>
+
+          <!-- Selected Courses Chips Container -->
+          <div class="mt-4">
+            <div id="selectedCoursesContainer" class="flex flex-wrap gap-2 min-h-[44px] p-2 bg-slate-900/60 rounded-xl border border-slate-700/50">
+              <span id="noCoursesPlaceholder" class="text-xs text-slate-400 m-auto py-1">
+                No courses added yet. Type or click above to add at least 2 courses.
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <!-- CARD 2: Preferences & Constraints -->
+        <div class="bg-slate-800/80 backdrop-blur border border-slate-700/80 rounded-2xl p-5 shadow-xl space-y-4">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center space-x-2">
+              <i data-lucide="sliders" class="w-5 h-5 text-cyan-400"></i>
+              <h2 class="font-semibold text-base text-white">Preferences & Constraints</h2>
+            </div>
+            <button id="resetPrefsBtn" class="text-xs text-slate-400 hover:text-slate-200 underline">Reset</button>
+          </div>
+
+          <!-- Only Open Seats Toggle -->
+          <label class="flex items-center justify-between p-3 rounded-xl bg-slate-900/60 border border-slate-700/50 cursor-pointer hover:bg-slate-900 transition">
+            <div class="flex items-center space-x-3">
+              <div class="p-2 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                <i data-lucide="users" class="w-4 h-4"></i>
+              </div>
+              <div>
+                <p class="text-sm font-medium text-slate-200">Only Open Seats</p>
+                <p class="text-xs text-slate-400">Exclude sections that are currently full (0 seats remaining)</p>
+              </div>
+            </div>
+            <input type="checkbox" id="onlyOpenCheckbox" class="w-4 h-4 rounded text-brand-600 bg-slate-900 border-slate-700 focus:ring-brand-500">
+          </label>
+
+          <!-- Class Days Target -->
+          <div class="p-3 rounded-xl bg-slate-900/60 border border-slate-700/50 space-y-2.5">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center space-x-2">
+                <i data-lucide="calendar" class="w-4 h-4 text-brand-400"></i>
+                <span class="text-sm font-medium text-slate-200">Desired Class Days per Week</span>
+              </div>
+              <span id="targetDaysValue" class="text-xs font-semibold px-2 py-0.5 rounded bg-brand-500/20 text-brand-300 border border-brand-500/30">Any</span>
+            </div>
+
+            <!-- Days Selector Pills -->
+            <div class="grid grid-cols-6 gap-1.5">
+              <button type="button" class="target-day-btn active-day text-xs py-1.5 rounded-lg border text-center font-medium transition" data-days="0">Any</button>
+              <button type="button" class="target-day-btn text-xs py-1.5 rounded-lg border text-center font-medium transition" data-days="1">1</button>
+              <button type="button" class="target-day-btn text-xs py-1.5 rounded-lg border text-center font-medium transition" data-days="2">2</button>
+              <button type="button" class="target-day-btn text-xs py-1.5 rounded-lg border text-center font-medium transition" data-days="3">3</button>
+              <button type="button" class="target-day-btn text-xs py-1.5 rounded-lg border text-center font-medium transition" data-days="4">4</button>
+              <button type="button" class="target-day-btn text-xs py-1.5 rounded-lg border text-center font-medium transition" data-days="5">5</button>
+            </div>
+
+            <!-- Exact Days Hard Filter -->
+            <label class="flex items-center space-x-2 pt-1 text-xs text-slate-300 cursor-pointer">
+              <input type="checkbox" id="exactDaysCheckbox" class="w-3.5 h-3.5 rounded text-brand-600 bg-slate-900 border-slate-700 focus:ring-brand-500" disabled>
+              <span>Enforce exact days (Hard filter: strictly drop all other day counts)</span>
+            </label>
+          </div>
+
+          <!-- Mandatory Sections Accordion / Section -->
+          <div class="p-3 rounded-xl bg-slate-900/60 border border-slate-700/50 space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="text-sm font-medium text-slate-200 flex items-center space-x-2">
+                <i data-lucide="pin" class="w-4 h-4 text-amber-400"></i>
+                <span>Mandatory Section Constraints</span>
+              </span>
+            </div>
+            <p class="text-xs text-slate-400">Lock specific section(s) for your courses (e.g. <code class="text-amber-300">CSE110:01</code>, <code class="text-amber-300">01</code>):</p>
+            <input
+              type="text"
+              id="mandatorySectionsInput"
+              placeholder="e.g. CSE110:01, MAT110:02 or 01"
+              class="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-xs text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500"
+            >
+            <div id="courseMandatorySlots" class="space-y-1.5 pt-1"></div>
+          </div>
+
+          <!-- Faculty Preferences Accordion -->
+          <div class="p-3 rounded-xl bg-slate-900/60 border border-slate-700/50 space-y-3">
+            <div class="flex items-center space-x-2">
+              <i data-lucide="graduation-cap" class="w-4 h-4 text-purple-400"></i>
+              <span class="text-sm font-medium text-slate-200">Faculty Preferences</span>
+            </div>
+
+            <!-- Preferred Faculty Input -->
+            <div>
+              <label class="block text-xs font-medium text-slate-300 mb-1">
+                Preferred Faculty (Ranks higher):
+              </label>
+              <input
+                type="text"
+                id="preferredFacultyInput"
+                placeholder="e.g. AIB, DZK, CSE110:TAZ"
+                class="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-xs text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500"
+              >
+            </div>
+
+            <!-- Mandatory Preferred Faculty Toggle -->
+            <label class="flex items-center space-x-2 text-xs text-slate-300 cursor-pointer">
+              <input type="checkbox" id="mandatoryFacultyCheckbox" class="w-3.5 h-3.5 rounded text-brand-600 bg-slate-900 border-slate-700 focus:ring-brand-500">
+              <span>Mandatory Preferred Faculty (strictly exclude other faculties)</span>
+            </label>
+
+            <!-- Avoid Faculty Input -->
+            <div>
+              <label class="block text-xs font-medium text-slate-300 mb-1">
+                Avoid Faculty (Excluded entirely):
+              </label>
+              <input
+                type="text"
+                id="avoidFacultyInput"
+                placeholder="e.g. XYZ, CSE220:ABC"
+                class="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-xs text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500"
+              >
+            </div>
+          </div>
+
+          <!-- Skip Class Times -->
+          <div class="p-3 rounded-xl bg-slate-900/60 border border-slate-700/50 space-y-2">
+            <div class="flex items-center space-x-2">
+              <i data-lucide="clock" class="w-4 h-4 text-rose-400"></i>
+              <span class="text-sm font-medium text-slate-200">Skip Class Times</span>
+            </div>
+            <p class="text-xs text-slate-400">Drop sections having classes at these times:</p>
+
+            <!-- Preset Slot Pills -->
+            <div class="grid grid-cols-2 gap-2">
+              <label class="flex items-center space-x-2 p-2 rounded-lg bg-slate-900 border border-slate-700/70 text-xs cursor-pointer hover:border-slate-600 transition">
+                <input type="checkbox" class="skip-slot-checkbox rounded text-brand-600 bg-slate-900 border-slate-700" value="08:00 AM - 09:20 AM">
+                <span>08:00 AM slot</span>
+              </label>
+              <label class="flex items-center space-x-2 p-2 rounded-lg bg-slate-900 border border-slate-700/70 text-xs cursor-pointer hover:border-slate-600 transition">
+                <input type="checkbox" class="skip-slot-checkbox rounded text-brand-600 bg-slate-900 border-slate-700" value="05:00 PM - 06:20 PM">
+                <span>05:00 PM slot</span>
+              </label>
+              <label class="flex items-center space-x-2 p-2 rounded-lg bg-slate-900 border border-slate-700/70 text-xs cursor-pointer hover:border-slate-600 transition">
+                <input type="checkbox" class="skip-slot-checkbox rounded text-brand-600 bg-slate-900 border-slate-700" value="06:30 PM - 07:50 PM">
+                <span>06:30 PM slot</span>
+              </label>
+              <label class="flex items-center space-x-2 p-2 rounded-lg bg-slate-900 border border-slate-700/70 text-xs cursor-pointer hover:border-slate-600 transition">
+                <input type="checkbox" class="skip-slot-checkbox rounded text-brand-600 bg-slate-900 border-slate-700" value="08:00 PM - 09:20 PM">
+                <span>08:00 PM slot</span>
+              </label>
+            </div>
+
+            <!-- Custom Skip Input -->
+            <input
+              type="text"
+              id="customSkipTimesInput"
+              placeholder="Custom e.g. Sun 05:00 PM - 06:20 PM, 08:00 AM - 11:00 AM"
+              class="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-xs text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500"
+            >
+          </div>
+
+          <!-- Sorting & Limits -->
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-medium text-slate-300 mb-1">Primary Sort:</label>
+              <select id="primarySortSelect" class="w-full px-2.5 py-2 bg-slate-900 border border-slate-700 rounded-lg text-xs text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-500">
+                <option value="gap" selected>Least idle gap (Compact)</option>
+                <option value="days">Fewest days used</option>
+                <option value="target_days">Closest to desired days</option>
+                <option value="earliest">Earliest class start</option>
+                <option value="latest">Latest class end</option>
+                <option value="faculty">Preferred faculty matches</option>
+                <option value="none">No sorting</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-300 mb-1">Secondary Sort:</label>
+              <select id="secondarySortSelect" class="w-full px-2.5 py-2 bg-slate-900 border border-slate-700 rounded-lg text-xs text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-500">
+                <option value="none" selected>(None)</option>
+                <option value="gap">Least idle gap</option>
+                <option value="days">Fewest days used</option>
+                <option value="target_days">Closest to desired days</option>
+                <option value="earliest">Earliest start</option>
+                <option value="latest">Latest end</option>
+                <option value="faculty">Faculty matches</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Max Results Slider -->
+          <div class="flex items-center justify-between text-xs text-slate-300 pt-1">
+            <span>Max results limit:</span>
+            <div class="flex items-center space-x-2">
+              <input type="range" id="maxResultsSlider" min="5" max="100" step="5" value="30" class="w-32 accent-brand-500">
+              <span id="maxResultsValue" class="w-8 text-right font-semibold text-brand-400">30</span>
+            </div>
+          </div>
+
+          <!-- GENERATE BUTTON -->
+          <button
+            id="generateBtn"
+            class="w-full py-3.5 px-4 bg-gradient-to-r from-brand-600 via-indigo-600 to-cyan-600 hover:from-brand-500 hover:to-cyan-500 text-white font-semibold rounded-xl shadow-lg shadow-brand-500/25 flex items-center justify-center space-x-2 transition transform active:scale-[0.99]"
+          >
+            <i data-lucide="zap" class="w-5 h-5"></i>
+            <span class="text-sm">Find Conflict-Free Schedules</span>
+          </button>
+        </div>
+
+      </div>
+
+      <!-- ==================== RIGHT COLUMN: RESULTS & TIMETABLE (7 COLS) ==================== -->
+      <div class="lg:col-span-7 space-y-5">
+        
+        <!-- Results Container -->
+        <div id="resultsCard" class="bg-slate-800/80 backdrop-blur border border-slate-700/80 rounded-2xl p-5 shadow-xl min-h-[500px] flex flex-col justify-between">
+          
+          <!-- State 1: Empty Initial State -->
+          <div id="emptyState" class="my-auto py-16 text-center space-y-4">
+            <div class="w-16 h-16 rounded-2xl bg-slate-700/40 border border-slate-600/40 flex items-center justify-center mx-auto text-slate-400">
+              <i data-lucide="calendar-search" class="w-8 h-8 text-brand-400"></i>
+            </div>
+            <div class="max-w-md mx-auto">
+              <h3 class="text-base font-semibold text-white">No Schedules Generated Yet</h3>
+              <p class="text-xs text-slate-400 mt-1">
+                Select at least 2 courses on the left and click <b>"Find Conflict-Free Schedules"</b> to generate all clash-free combinations.
+              </p>
+            </div>
+          </div>
+
+          <!-- State 2: Loading State -->
+          <div id="loadingState" class="hidden my-auto py-16 text-center space-y-4">
+            <div class="relative w-14 h-14 mx-auto">
+              <div class="absolute inset-0 rounded-full border-4 border-slate-700"></div>
+              <div class="absolute inset-0 rounded-full border-4 border-brand-500 border-t-transparent animate-spin"></div>
+            </div>
+            <div>
+              <h3 class="text-sm font-semibold text-white">Analyzing combinations...</h3>
+              <p id="loadingLogText" class="text-xs text-slate-400 mt-1 font-mono">Checking theory, lab, and exam times...</p>
+            </div>
+          </div>
+
+          <!-- State 3: Active Results View -->
+          <div id="activeResultsView" class="hidden space-y-4">
+            
+            <!-- Top Controls Bar: Summary & Navigation -->
+            <div class="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-700">
+              <div>
+                <div class="flex items-center space-x-2">
+                  <span id="validCountBadge" class="text-sm font-bold text-emerald-400">
+                    48 valid schedules found
+                  </span>
+                  <span id="sortNotice" class="text-xs text-slate-400 font-mono"></span>
+                </div>
+                <p id="showingNotice" class="text-xs text-slate-400">Option 1 of 30</p>
+              </div>
+
+              <!-- Pagination / Carousel Controls -->
+              <div class="flex items-center space-x-2">
+                <button id="prevOptionBtn" class="p-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-white transition" title="Previous Option (Left Arrow)">
+                  <i data-lucide="chevron-left" class="w-4 h-4"></i>
+                </button>
+                <div class="flex items-center space-x-1 text-xs">
+                  <input type="number" id="optionJumpInput" min="1" max="1" value="1" class="w-12 text-center py-1 bg-slate-900 border border-slate-700 rounded text-slate-200 font-mono">
+                  <span class="text-slate-400" id="totalOptionsDisplay">/ 30</span>
+                </div>
+                <button id="nextOptionBtn" class="p-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-white transition" title="Next Option (Right Arrow)">
+                  <i data-lucide="chevron-right" class="w-4 h-4"></i>
+                </button>
+              </div>
+            </div>
+
+            <!-- Metrics Bar -->
+            <div class="grid grid-cols-3 gap-2 py-2">
+              <div class="p-2.5 rounded-xl bg-slate-900/80 border border-slate-700/60 text-center">
+                <p class="text-[11px] text-slate-400 uppercase tracking-wider font-semibold">Idle Gap</p>
+                <p id="metricGap" class="text-sm font-bold text-white mt-0.5">0 mins</p>
+              </div>
+              <div class="p-2.5 rounded-xl bg-slate-900/80 border border-slate-700/60 text-center">
+                <p class="text-[11px] text-slate-400 uppercase tracking-wider font-semibold">Days on Campus</p>
+                <p id="metricDays" class="text-sm font-bold text-cyan-400 mt-0.5">3 Days</p>
+              </div>
+              <div class="p-2.5 rounded-xl bg-slate-900/80 border border-slate-700/60 text-center">
+                <p class="text-[11px] text-slate-400 uppercase tracking-wider font-semibold">Faculty Matches</p>
+                <p id="metricFaculty" class="text-sm font-bold text-purple-400 mt-0.5">2 / 2</p>
+              </div>
+            </div>
+
+            <!-- VISUAL WEEKLY TIMETABLE GRID -->
+            <div class="overflow-x-auto rounded-xl border border-slate-700 bg-slate-900/90 p-2 shadow-inner">
+              <table id="timetableGrid" class="w-full border-collapse text-xs">
+                <thead>
+                  <tr class="border-b border-slate-700">
+                    <th class="p-2 text-left font-semibold text-slate-400 w-24">Time</th>
+                    <th class="p-2 text-center font-semibold text-slate-300">Sunday</th>
+                    <th class="p-2 text-center font-semibold text-slate-300">Monday</th>
+                    <th class="p-2 text-center font-semibold text-slate-300">Tuesday</th>
+                    <th class="p-2 text-center font-semibold text-slate-300">Wednesday</th>
+                    <th class="p-2 text-center font-semibold text-slate-300">Thursday</th>
+                    <th class="p-2 text-center font-semibold text-slate-300">Friday</th>
+                    <th class="p-2 text-center font-semibold text-slate-300">Saturday</th>
+                  </tr>
+                </thead>
+                <tbody id="timetableGridBody" class="divide-y divide-slate-800/80">
+                  <!-- Grid rows injected via JS -->
+                </tbody>
+              </table>
+            </div>
+
+            <!-- SECTION BREAKDOWN & EXAM SCHEDULE CARD -->
+            <div class="p-4 rounded-xl bg-slate-900/70 border border-slate-700/60 space-y-3">
+              <div class="flex items-center justify-between">
+                <h4 class="text-xs font-semibold uppercase tracking-wider text-slate-300 flex items-center space-x-1.5">
+                  <i data-lucide="list-checks" class="w-4 h-4 text-brand-400"></i>
+                  <span>Selected Sections & Final Exam Schedule</span>
+                </h4>
+                <button id="copyScheduleBtn" class="text-xs px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 flex items-center space-x-1 transition">
+                  <i data-lucide="copy" class="w-3 h-3"></i>
+                  <span id="copyBtnText">Copy Text</span>
+                </button>
+              </div>
+
+              <!-- Sections Table -->
+              <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs border-collapse">
+                  <thead>
+                    <tr class="border-b border-slate-700/80 text-slate-400">
+                      <th class="pb-1.5 font-medium">Course</th>
+                      <th class="pb-1.5 font-medium">Sec</th>
+                      <th class="pb-1.5 font-medium">Faculty</th>
+                      <th class="pb-1.5 font-medium">Room</th>
+                      <th class="pb-1.5 font-medium">Seats</th>
+                      <th class="pb-1.5 font-medium">Final Exam</th>
+                    </tr>
+                  </thead>
+                  <tbody id="sectionsDetailsTableBody" class="divide-y divide-slate-800/50">
+                    <!-- Sections rows injected via JS -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- BOTTOM ACTION EXPORT BUTTONS -->
+            <div class="flex flex-wrap items-center justify-between gap-2 pt-2">
+              <div class="flex items-center space-x-2">
+                <button id="exportPdfBtn" class="px-3.5 py-2 rounded-xl bg-rose-600/90 hover:bg-rose-500 text-white text-xs font-medium flex items-center space-x-1.5 shadow transition">
+                  <i data-lucide="file-text" class="w-4 h-4"></i>
+                  <span>Download PDF Report</span>
+                </button>
+                <button id="exportCsvBtn" class="px-3.5 py-2 rounded-xl bg-emerald-600/90 hover:bg-emerald-500 text-white text-xs font-medium flex items-center space-x-1.5 shadow transition">
+                  <i data-lucide="file-spreadsheet" class="w-4 h-4"></i>
+                  <span>Export CSV</span>
+                </button>
+              </div>
+              <button id="printBtn" class="px-3 py-2 rounded-xl bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs font-medium flex items-center space-x-1.5 transition">
+                <i data-lucide="printer" class="w-4 h-4"></i>
+                <span>Print</span>
+              </button>
+            </div>
+
+          </div>
+
+          <!-- State 4: Execution Log Box (Collapsible) -->
+          <div class="mt-4 pt-3 border-t border-slate-700/60">
+            <details class="text-xs">
+              <summary class="cursor-pointer text-slate-400 hover:text-slate-300 font-mono flex items-center space-x-1 select-none">
+                <span>View Engine Logs</span>
+              </summary>
+              <pre id="engineLogsPre" class="mt-2 p-2.5 rounded-lg bg-slate-950 text-slate-300 font-mono text-[11px] max-h-36 overflow-y-auto border border-slate-800 leading-relaxed"></pre>
+            </details>
+          </div>
+
+        </div>
+
+      </div>
+
+    </div>
+  </main>
+
+  <!-- ==================== MODAL: COURSE SECTION INSPECTOR ==================== -->
+  <div id="courseInspectorModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
+    <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-2xl w-full max-h-[85vh] flex flex-col shadow-2xl overflow-hidden">
+      <!-- Modal Header -->
+      <div class="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-800/40">
+        <div>
+          <h3 id="inspectorCourseTitle" class="text-base font-bold text-white">CSE110 - Sections Breakdown</h3>
+          <p id="inspectorCourseSub" class="text-xs text-slate-400">All available sections in the current semester feed</p>
+        </div>
+        <button id="closeInspectorBtn" class="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <!-- Modal Body (Table) -->
+      <div class="p-4 overflow-y-auto flex-1">
+        <table class="w-full text-left text-xs border-collapse">
+          <thead>
+            <tr class="border-b border-slate-700 text-slate-400">
+              <th class="pb-2 font-semibold">Section</th>
+              <th class="pb-2 font-semibold">Faculty</th>
+              <th class="pb-2 font-semibold">Theory Time</th>
+              <th class="pb-2 font-semibold">Lab Time</th>
+              <th class="pb-2 font-semibold">Seats</th>
+              <th class="pb-2 font-semibold">Final Exam</th>
+            </tr>
+          </thead>
+          <tbody id="inspectorTableBody" class="divide-y divide-slate-800">
+            <!-- Injected via JS -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL: HELP & GUIDE ==================== -->
+  <div id="helpModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
+    <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-xl w-full max-h-[85vh] flex flex-col shadow-2xl overflow-hidden">
+      <div class="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-800/40">
+        <div class="flex items-center space-x-2">
+          <i data-lucide="help-circle" class="w-5 h-5 text-brand-400"></i>
+          <h3 class="text-base font-bold text-white">How Course Combinator Works</h3>
+        </div>
+        <button id="closeHelpBtn" class="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <div class="p-5 overflow-y-auto space-y-4 text-xs text-slate-300 leading-relaxed">
+        <section class="space-y-1">
+          <h4 class="font-semibold text-white text-sm">1. Conflict-Free Guarantee</h4>
+          <p>The combinator algorithm checks every single possible pairing of sections across your selected courses to ensure that <b>no theory classes</b>, <b>no labs</b>, and <b>no final exams</b> overlap with one another.</p>
+        </section>
+
+        <section class="space-y-1">
+          <h4 class="font-semibold text-white text-sm">2. Mandatory Section Constraints</h4>
+          <p>If you specifically want a particular section (e.g. section 01 for CSE110), you can type <code class="text-amber-300 bg-slate-800 px-1 py-0.5 rounded">CSE110:01</code> in the mandatory section box. Combinations without this section are automatically excluded.</p>
+        </section>
+
+        <section class="space-y-1">
+          <h4 class="font-semibold text-white text-sm">3. Faculty Preferences & Avoidance</h4>
+          <p>Enter faculty initials (e.g. <code class="text-purple-300 bg-slate-800 px-1 py-0.5 rounded">AIB, DZK</code>). The engine prioritizes schedules with your preferred instructors. If you check <b>Mandatory</b>, any section not matching preferred faculty is dropped.</p>
+        </section>
+
+        <section class="space-y-1">
+          <h4 class="font-semibold text-white text-sm">4. Skip Class Times</h4>
+          <p>Avoid early morning 8:00 AM slots or late evening slots with one click.</p>
+        </section>
+
+        <section class="space-y-1">
+          <h4 class="font-semibold text-white text-sm">5. Export & Sharing</h4>
+          <p>Export conflict-free schedules to PDF or CSV reports, copy formatted text for Discord, or print directly.</p>
+        </section>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div id="toastContainer" class="fixed bottom-5 right-5 z-50 space-y-2 pointer-events-none"></div>
+
+  <!-- Application Logic -->
+  <script src="/static/js/app.js"></script>
+</body>
+</html>
