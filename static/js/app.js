@@ -30,6 +30,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const noCoursesPlaceholder = document.getElementById("noCoursesPlaceholder");
   const selectedCoursesCount = document.getElementById("selectedCoursesCount");
   const courseMandatorySlots = document.getElementById("courseMandatorySlots");
+  const courseFacultySlots = document.getElementById("courseFacultySlots");
 
   const onlyOpenCheckbox = document.getElementById("onlyOpenCheckbox");
   const targetDayButtons = document.querySelectorAll(".target-day-btn");
@@ -295,7 +296,8 @@ document.addEventListener("DOMContentLoaded", () => {
       selectedCoursesContainer.innerHTML = "";
       selectedCoursesContainer.appendChild(noCoursesPlaceholder);
       noCoursesPlaceholder.classList.remove("hidden");
-      courseMandatorySlots.innerHTML = "";
+      if (courseMandatorySlots) courseMandatorySlots.innerHTML = "";
+      if (courseFacultySlots) courseFacultySlots.innerHTML = `<p class="text-[11px] text-slate-500 italic">Add courses above to set specific faculty preferences per course.</p>`;
       return;
     }
 
@@ -330,16 +332,32 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     // Update mandatory section helper labels
-    courseMandatorySlots.innerHTML = state.selectedCourses
-      .map(
-        (code) => `
-        <div class="flex items-center space-x-2 text-[11px]">
-          <span class="w-16 font-mono font-semibold text-brand-300">${code}:</span>
-          <input type="text" class="course-spec-mand px-2 py-1 bg-slate-900 border border-slate-700 rounded text-xs text-slate-100 placeholder-slate-500 w-full" data-code="${code}" placeholder="e.g. 01, 02 (optional)">
-        </div>
-      `
-      )
-      .join("");
+    if (courseMandatorySlots) {
+      courseMandatorySlots.innerHTML = state.selectedCourses
+        .map(
+          (code) => `
+          <div class="flex items-center space-x-2 text-[11px]">
+            <span class="w-16 font-mono font-semibold text-brand-300">${code}:</span>
+            <input type="text" class="course-spec-mand px-2 py-1 bg-slate-900 border border-slate-700 rounded text-xs text-slate-100 placeholder-slate-500 w-full" data-code="${code}" placeholder="e.g. 01, 02 (optional)">
+          </div>
+        `
+        )
+        .join("");
+    }
+
+    // Update per-course faculty preference slots
+    if (courseFacultySlots) {
+      courseFacultySlots.innerHTML = state.selectedCourses
+        .map(
+          (code) => `
+          <div class="flex items-center space-x-2 text-[11px]">
+            <span class="w-16 font-mono font-semibold text-purple-300">${code}:</span>
+            <input type="text" class="course-spec-faculty px-2 py-1 bg-slate-900 border border-slate-700 rounded text-xs text-slate-100 placeholder-slate-500 w-full focus:outline-none focus:ring-1 focus:ring-purple-500" data-code="${code}" placeholder="e.g. AIB, TAZ (initials for ${code})">
+          </div>
+        `
+        )
+        .join("");
+    }
   }
 
   // -----------------------------------------------------------------------
@@ -471,17 +489,34 @@ document.addEventListener("DOMContentLoaded", () => {
       });
     }
 
-    // Collect faculty preferences
-    const preferFaculty = preferredFacultyInput.value.trim() ? preferredFacultyInput.value.trim().split(/[,; ]+/).filter(Boolean) : null;
-    const avoidFaculty = avoidFacultyInput.value.trim() ? avoidFacultyInput.value.trim().split(/[,; ]+/).filter(Boolean) : null;
+    // Collect faculty preferences (Global + Per-Course)
+    const preferFacultyTokens = [];
+    if (preferredFacultyInput && preferredFacultyInput.value.trim()) {
+      preferredFacultyInput.value.trim().split(/[,; ]+/).forEach((tok) => {
+        if (tok.trim()) preferFacultyTokens.push(tok.trim());
+      });
+    }
+    document.querySelectorAll(".course-spec-faculty").forEach((inp) => {
+      const code = inp.dataset.code;
+      const val = inp.value.trim();
+      if (val) {
+        val.split(/[,; ]+/).forEach((init) => {
+          if (init.trim()) {
+            preferFacultyTokens.push(`${code}:${init.trim().toUpperCase()}`);
+          }
+        });
+      }
+    });
+
+    const avoidFacultyTokens = avoidFacultyInput && avoidFacultyInput.value.trim() ? avoidFacultyInput.value.trim().split(/[,; ]+/).filter(Boolean) : null;
 
     const payload = {
       courses: state.selectedCourses,
       only_open: onlyOpenCheckbox.checked,
       target_days: state.targetDays > 0 ? state.targetDays : null,
       exact_days: exactDaysCheckbox.checked && state.targetDays > 0,
-      prefer_faculty: preferFaculty,
-      avoid_faculty: avoidFaculty,
+      prefer_faculty: preferFacultyTokens.length > 0 ? preferFacultyTokens : null,
+      avoid_faculty: avoidFacultyTokens,
       mandatory_preferred_faculty: mandatoryFacultyCheckbox.checked,
       mandatory_sections: mandTokens.length > 0 ? mandTokens : null,
       skip_times: skipTimes.length > 0 ? skipTimes : null,
