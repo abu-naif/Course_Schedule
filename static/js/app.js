@@ -11,7 +11,9 @@ document.addEventListener("DOMContentLoaded", () => {
   const state = {
     allCourses: [],
     allFaculties: [],
+    allTimeSlots: [],
     selectedCourses: [],
+    skipTimes: [], // array of skip rule strings e.g. ["08:00 AM - 09:20 AM", "Sun 05:00 PM - 06:20 PM"]
     targetDays: 0, // 0 means 'Any'
     currentCombinations: [],
     currentIndex: 0,
@@ -42,7 +44,16 @@ document.addEventListener("DOMContentLoaded", () => {
   const mandatoryFacultyCheckbox = document.getElementById("mandatoryFacultyCheckbox");
   const avoidFacultyInput = document.getElementById("avoidFacultyInput");
   const avoidFacultySuggestions = document.getElementById("avoidFacultySuggestions");
+
+  const skipDaySelect = document.getElementById("skipDaySelect");
   const customSkipTimesInput = document.getElementById("customSkipTimesInput");
+  const skipTimesSuggestions = document.getElementById("skipTimesSuggestions");
+  const addSkipTimeBtn = document.getElementById("addSkipTimeBtn");
+  const activeSkipRulesCount = document.getElementById("activeSkipRulesCount");
+  const noSkipRulesPlaceholder = document.getElementById("noSkipRulesPlaceholder");
+  const skipRulesChipsList = document.getElementById("skipRulesChipsList");
+  const quickSkipPresets = document.querySelectorAll(".quick-skip-preset");
+
   const primarySortSelect = document.getElementById("primarySortSelect");
   const secondarySortSelect = document.getElementById("secondarySortSelect");
   const maxResultsSlider = document.getElementById("maxResultsSlider");
@@ -172,12 +183,14 @@ document.addEventListener("DOMContentLoaded", () => {
       if (!refresh) {
         state.allCourses = data.courses || [];
         state.allFaculties = data.faculties || [];
+        state.allTimeSlots = data.time_slots || [];
       } else {
         // Re-fetch info to update course list
         const infoResp = await fetch("/api/info");
         const infoData = await infoResp.json();
         state.allCourses = infoData.courses || [];
         state.allFaculties = infoData.faculties || [];
+        state.allTimeSlots = infoData.time_slots || [];
       }
 
       const totalSec = data.total_sections || 0;
@@ -581,10 +594,341 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
+  // -----------------------------------------------------------------------
+  // Skip Times Autocomplete & Filter Management Engine
+  // -----------------------------------------------------------------------
+
+  const DEFAULT_BRACU_TIME_SLOTS = [
+    { label: "08:00 AM - 09:20 AM", type: "Theory Slot 1" },
+    { label: "08:00 AM - 10:50 AM", type: "Lab Morning" },
+    { label: "09:30 AM - 10:50 AM", type: "Theory Slot 2" },
+    { label: "11:00 AM - 12:20 PM", type: "Theory Slot 3" },
+    { label: "11:00 AM - 01:50 PM", type: "Lab Midday" },
+    { label: "12:30 PM - 01:50 PM", type: "Theory Slot 4" },
+    { label: "02:00 PM - 03:20 PM", type: "Theory Slot 5" },
+    { label: "02:00 PM - 04:50 PM", type: "Lab Afternoon" },
+    { label: "03:30 PM - 04:50 PM", type: "Theory Slot 6" },
+    { label: "05:00 PM - 06:20 PM", type: "Theory Slot 7 (Evening)" },
+    { label: "06:30 PM - 07:50 PM", type: "Theory Slot 8 (Night)" },
+    { label: "08:00 PM - 09:20 PM", type: "Theory Slot 9 (Late Night)" },
+  ];
+
+  function parseSkipRule(ruleStr) {
+    const clean = ruleStr.trim();
+    const firstWord = clean.split(/\s+/)[0].toUpperCase();
+    const dayMap = {
+      SUN: "Sunday",
+      SUNDAY: "Sunday",
+      MON: "Monday",
+      MONDAY: "Monday",
+      TUE: "Tuesday",
+      TUESDAY: "Tuesday",
+      WED: "Wednesday",
+      WEDNESDAY: "Wednesday",
+      THU: "Thursday",
+      THURSDAY: "Thursday",
+      FRI: "Friday",
+      FRIDAY: "Friday",
+      SAT: "Saturday",
+      SATURDAY: "Saturday",
+    };
+    if (dayMap[firstWord]) {
+      const timePart = clean.slice(firstWord.length).trim();
+      return {
+        raw: clean,
+        dayKey: firstWord.slice(0, 3).charAt(0).toUpperCase() + firstWord.slice(1, 3).toLowerCase(),
+        dayLabel: dayMap[firstWord],
+        time: timePart,
+        displayText: `${dayMap[firstWord]} • ${timePart}`,
+      };
+    }
+    return {
+      raw: clean,
+      dayKey: "ALL",
+      dayLabel: "All Days",
+      time: clean,
+      displayText: `All Days • ${clean}`,
+    };
+  }
+
+  function addSkipRule(ruleStr) {
+    const clean = ruleStr.trim();
+    if (!clean) return;
+    if (!state.skipTimes.includes(clean)) {
+      state.skipTimes.push(clean);
+      renderSkipRules();
+    }
+  }
+
+  function removeSkipRule(ruleStr) {
+    state.skipTimes = state.skipTimes.filter((r) => r !== ruleStr);
+    renderSkipRules();
+  }
+
+  function toggleSkipRule(ruleStr) {
+    if (state.skipTimes.includes(ruleStr)) {
+      removeSkipRule(ruleStr);
+    } else {
+      addSkipRule(ruleStr);
+    }
+  }
+
+  function renderSkipRules() {
+    if (!skipRulesChipsList || !noSkipRulesPlaceholder) return;
+
+    if (state.skipTimes.length === 0) {
+      noSkipRulesPlaceholder.classList.remove("hidden");
+      skipRulesChipsList.innerHTML = "";
+      if (activeSkipRulesCount) activeSkipRulesCount.classList.add("hidden");
+    } else {
+      noSkipRulesPlaceholder.classList.add("hidden");
+      if (activeSkipRulesCount) {
+        activeSkipRulesCount.textContent = `${state.skipTimes.length} active`;
+        activeSkipRulesCount.classList.remove("hidden");
+      }
+
+      skipRulesChipsList.innerHTML = state.skipTimes
+        .map((r) => {
+          const parsed = parseSkipRule(r);
+          return `
+          <div class="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-lg bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs font-medium shadow-sm transition hover:bg-rose-500/20">
+            <i data-lucide="clock" class="w-3.5 h-3.5 text-rose-400"></i>
+            <span class="font-mono text-[11px] font-semibold">${parsed.displayText}</span>
+            <button type="button" class="remove-skip-rule-btn p-0.5 hover:text-white transition ml-1" data-rule="${r}" title="Remove rule">
+              <i data-lucide="x" class="w-3.5 h-3.5"></i>
+            </button>
+          </div>
+        `;
+        })
+        .join("");
+
+      lucide.createIcons();
+
+      skipRulesChipsList.querySelectorAll(".remove-skip-rule-btn").forEach((btn) => {
+        btn.addEventListener("click", () => removeSkipRule(btn.dataset.rule));
+      });
+    }
+
+    // Update Quick Presets visual state
+    quickSkipPresets.forEach((btn) => {
+      const timeVal = btn.dataset.time;
+      const dayVal = skipDaySelect ? skipDaySelect.value : "ALL";
+      const expectedRule = dayVal === "ALL" ? timeVal : `${dayVal} ${timeVal}`;
+      const isExactActive = state.skipTimes.includes(expectedRule);
+      const isAnyActive = state.skipTimes.some((r) => r.includes(timeVal));
+
+      const statusSpan = btn.querySelector(".preset-status");
+      if (isExactActive || isAnyActive) {
+        btn.classList.add("bg-rose-950/40", "border-rose-500/60", "text-rose-200");
+        btn.classList.remove("bg-slate-900", "border-slate-700/70", "text-slate-300");
+        if (statusSpan) statusSpan.textContent = "✓ Active";
+      } else {
+        btn.classList.remove("bg-rose-950/40", "border-rose-500/60", "text-rose-200");
+        btn.classList.add("bg-slate-900", "border-slate-700/70", "text-slate-300");
+        if (statusSpan) statusSpan.textContent = "+ Skip";
+      }
+    });
+  }
+
+  function setupSkipTimesAutocomplete() {
+    if (!customSkipTimesInput || !skipTimesSuggestions) return;
+    let highlightedIndex = -1;
+
+    function getTimeSlotsData() {
+      if (state.allTimeSlots && state.allTimeSlots.length > 0) {
+        return state.allTimeSlots;
+      }
+      return DEFAULT_BRACU_TIME_SLOTS;
+    }
+
+    function renderSuggestions() {
+      const slots = getTimeSlotsData();
+      const query = customSkipTimesInput.value.trim().toUpperCase();
+      const dayVal = skipDaySelect ? skipDaySelect.value : "ALL";
+      const dayLabel = skipDaySelect ? skipDaySelect.options[skipDaySelect.selectedIndex].text : "All Days";
+
+      let matches = [];
+      if (!query) {
+        matches = [...slots];
+      } else {
+        matches = slots.filter((s) => {
+          const l = (s.label || "").toUpperCase();
+          const t = (s.type || "").toUpperCase();
+          return l.includes(query) || t.includes(query);
+        });
+      }
+
+      if (matches.length === 0) {
+        skipTimesSuggestions.innerHTML = `
+          <div class="p-2.5 text-center text-xs text-slate-400 italic">
+            No standard time slots matching "${customSkipTimesInput.value.trim()}"
+          </div>`;
+        skipTimesSuggestions.classList.remove("hidden");
+        highlightedIndex = -1;
+        return;
+      }
+
+      const headerHtml = `
+        <div class="px-3 py-1.5 bg-rose-950/60 border-b border-rose-800/40 text-[10px] font-semibold text-rose-300 flex items-center justify-between sticky top-0 backdrop-blur z-10">
+          <span>Targeting: <span class="text-white font-bold">${dayLabel}</span></span>
+          <span class="text-[9px] text-slate-400 font-normal">Click or Enter to add</span>
+        </div>`;
+
+      const itemsHtml = matches
+        .map((s, idx) => {
+          const timeLabel = s.label;
+          const targetRule = dayVal === "ALL" ? timeLabel : `${dayVal} ${timeLabel}`;
+          const isAdded = state.skipTimes.includes(targetRule);
+          const typeStr = s.type || "Class";
+          const countStr = s.count ? `${s.count} secs` : "";
+
+          const badgeHtml = isAdded
+            ? `<span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-rose-500/20 text-rose-300 border border-rose-500/30">✓ Active</span>`
+            : `<span class="text-[10px] text-slate-400 opacity-0 group-hover:opacity-100 transition font-medium text-rose-300">+ Skip</span>`;
+
+          return `
+            <div class="time-suggestion-item group px-3 py-2 hover:bg-rose-900/40 cursor-pointer flex items-center justify-between transition ${idx === highlightedIndex ? "bg-rose-900/50" : ""}" data-time="${timeLabel}" data-index="${idx}">
+              <div class="flex items-center space-x-2.5">
+                <div class="w-6 h-6 rounded-md bg-rose-500/20 border border-rose-500/30 flex items-center justify-center text-rose-300">
+                  <i data-lucide="clock" class="w-3.5 h-3.5"></i>
+                </div>
+                <div>
+                  <div class="flex items-center space-x-2">
+                    <span class="font-mono font-bold text-xs text-rose-200">${timeLabel}</span>
+                    <span class="text-[10px] text-slate-400">${typeStr} ${countStr ? `(${countStr})` : ""}</span>
+                  </div>
+                </div>
+              </div>
+              <div>${badgeHtml}</div>
+            </div>`;
+        })
+        .join("");
+
+      skipTimesSuggestions.innerHTML = headerHtml + itemsHtml;
+      skipTimesSuggestions.classList.remove("hidden");
+      lucide.createIcons();
+
+      // Attach click listeners
+      skipTimesSuggestions.querySelectorAll(".time-suggestion-item").forEach((item) => {
+        item.addEventListener("mousedown", (e) => {
+          e.preventDefault();
+          const timeLabel = item.dataset.time;
+          const currentDay = skipDaySelect ? skipDaySelect.value : "ALL";
+          const rule = currentDay === "ALL" ? timeLabel : `${currentDay} ${timeLabel}`;
+          toggleSkipRule(rule);
+          customSkipTimesInput.value = "";
+          renderSuggestions();
+        });
+      });
+    }
+
+    customSkipTimesInput.addEventListener("focus", () => {
+      renderSuggestions();
+    });
+
+    customSkipTimesInput.addEventListener("input", () => {
+      highlightedIndex = -1;
+      renderSuggestions();
+    });
+
+    if (skipDaySelect) {
+      skipDaySelect.addEventListener("change", () => {
+        renderSkipRules();
+        if (!skipTimesSuggestions.classList.contains("hidden")) {
+          renderSuggestions();
+        }
+      });
+    }
+
+    customSkipTimesInput.addEventListener("keydown", (e) => {
+      if (skipTimesSuggestions.classList.contains("hidden")) {
+        if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+          renderSuggestions();
+        }
+        return;
+      }
+
+      const items = skipTimesSuggestions.querySelectorAll(".time-suggestion-item");
+      if (items.length === 0) return;
+
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        highlightedIndex = (highlightedIndex + 1) % items.length;
+        updateTimeHighlight(items);
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        highlightedIndex = (highlightedIndex - 1 + items.length) % items.length;
+        updateTimeHighlight(items);
+      } else if (e.key === "Enter" || e.key === "Tab") {
+        e.preventDefault();
+        const currentDay = skipDaySelect ? skipDaySelect.value : "ALL";
+        if (highlightedIndex >= 0 && highlightedIndex < items.length) {
+          const timeLabel = items[highlightedIndex].dataset.time;
+          const rule = currentDay === "ALL" ? timeLabel : `${currentDay} ${timeLabel}`;
+          toggleSkipRule(rule);
+        } else if (items.length > 0) {
+          const firstTime = items[0].dataset.time;
+          const rule = currentDay === "ALL" ? firstTime : `${currentDay} ${firstTime}`;
+          toggleSkipRule(rule);
+        } else if (customSkipTimesInput.value.trim()) {
+          const rawVal = customSkipTimesInput.value.trim();
+          const rule = currentDay === "ALL" ? rawVal : `${currentDay} ${rawVal}`;
+          addSkipRule(rule);
+        }
+        customSkipTimesInput.value = "";
+        renderSuggestions();
+      } else if (e.key === "Escape") {
+        skipTimesSuggestions.classList.add("hidden");
+      }
+    });
+
+    function updateTimeHighlight(items) {
+      items.forEach((it, idx) => {
+        if (idx === highlightedIndex) {
+          it.classList.add("bg-rose-900/50");
+          it.scrollIntoView({ block: "nearest" });
+        } else {
+          it.classList.remove("bg-rose-900/50");
+        }
+      });
+    }
+
+    if (addSkipTimeBtn) {
+      addSkipTimeBtn.addEventListener("click", () => {
+        const val = customSkipTimesInput.value.trim();
+        const currentDay = skipDaySelect ? skipDaySelect.value : "ALL";
+        if (val) {
+          val.split(/[,;]/).forEach((t) => {
+            if (t.trim()) {
+              const rule = currentDay === "ALL" ? t.trim() : `${currentDay} ${t.trim()}`;
+              addSkipRule(rule);
+            }
+          });
+          customSkipTimesInput.value = "";
+          skipTimesSuggestions.classList.add("hidden");
+        } else {
+          renderSuggestions();
+          customSkipTimesInput.focus();
+        }
+      });
+    }
+
+    quickSkipPresets.forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const timeVal = btn.dataset.time;
+        const currentDay = skipDaySelect ? skipDaySelect.value : "ALL";
+        const rule = currentDay === "ALL" ? timeVal : `${currentDay} ${timeVal}`;
+        toggleSkipRule(rule);
+      });
+    });
+  }
+
   // Global click to close any open suggestions dropdown
   document.addEventListener("click", (e) => {
     document
-      .querySelectorAll(".faculty-suggestions-dropdown, #preferredFacultySuggestions, #avoidFacultySuggestions")
+      .querySelectorAll(
+        ".faculty-suggestions-dropdown, #preferredFacultySuggestions, #avoidFacultySuggestions, #skipTimesSuggestions"
+      )
       .forEach((dd) => {
         const container = dd.parentElement;
         if (container && !container.contains(e.target)) {
@@ -600,6 +944,10 @@ document.addEventListener("DOMContentLoaded", () => {
   if (avoidFacultyInput && avoidFacultySuggestions) {
     setupFacultyAutocomplete(avoidFacultyInput, avoidFacultySuggestions, null);
   }
+
+  // Initialize Skip Times Engine
+  setupSkipTimesAutocomplete();
+  renderSkipRules();
 
   function renderSelectedCourses() {
     selectedCoursesCount.textContent = `${state.selectedCourses.length} course${state.selectedCourses.length === 1 ? "" : "s"}`;
@@ -743,8 +1091,10 @@ document.addEventListener("DOMContentLoaded", () => {
     preferredFacultyInput.value = "";
     mandatoryFacultyCheckbox.checked = false;
     avoidFacultyInput.value = "";
-    customSkipTimesInput.value = "";
-    document.querySelectorAll(".skip-slot-checkbox").forEach((cb) => (cb.checked = false));
+    state.skipTimes = [];
+    if (skipDaySelect) skipDaySelect.value = "ALL";
+    if (customSkipTimesInput) customSkipTimesInput.value = "";
+    renderSkipRules();
     document.querySelectorAll(".course-spec-faculty").forEach((inp) => (inp.value = ""));
     document.querySelectorAll(".course-spec-mand").forEach((inp) => (inp.value = ""));
     primarySortSelect.value = "gap";
@@ -827,14 +1177,15 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     // Collect skip times
-    const skipTimes = [];
-    document.querySelectorAll(".skip-slot-checkbox:checked").forEach((cb) => {
-      skipTimes.push(cb.value);
-    });
-    const customSkip = customSkipTimesInput.value.trim();
+    const skipTimes = [...state.skipTimes];
+    const customSkip = customSkipTimesInput ? customSkipTimesInput.value.trim() : "";
     if (customSkip) {
+      const currentDay = skipDaySelect ? skipDaySelect.value : "ALL";
       customSkip.split(/[,;]/).forEach((t) => {
-        if (t.trim()) skipTimes.push(t.trim());
+        if (t.trim()) {
+          const rule = currentDay === "ALL" ? t.trim() : `${currentDay} ${t.trim()}`;
+          if (!skipTimes.includes(rule)) skipTimes.push(rule);
+        }
       });
     }
 

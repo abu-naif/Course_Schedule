@@ -54,6 +54,7 @@ class FeedCache:
         self.feed_data: Optional[Dict[str, Any]] = None
         self.courses_summary: List[Dict[str, Any]] = []
         self.faculties: List[str] = []
+        self.time_slots: List[Dict[str, Any]] = []
 
     def get_feed(self, force_refresh: bool = False) -> Dict[str, Any]:
         now = time.time()
@@ -76,6 +77,7 @@ class FeedCache:
         courses_raw = self.feed_data.get("courses", [])
         by_code: Dict[str, Dict[str, Any]] = {}
         faculties_set = set()
+        time_slots_map = {}
 
         for s in courses_raw:
             code = (s.get("courseCode") or "").strip().upper()
@@ -106,6 +108,19 @@ class FeedCache:
                 by_code[code]["faculties"].add(f_clean)
                 by_code[code]["faculty_sections"].setdefault(f_clean, []).append(sec_name)
 
+            # Collect time slots
+            for m in ps.get_theory_meetings(s):
+                key = (m.start_minutes, m.end_minutes, m.start_str, m.end_str)
+                if key not in time_slots_map:
+                    time_slots_map[key] = {"type": "Theory", "count": 0}
+                time_slots_map[key]["count"] += 1
+
+            for m in ps.get_lab_meetings(s):
+                key = (m.start_minutes, m.end_minutes, m.start_str, m.end_str)
+                if key not in time_slots_map:
+                    time_slots_map[key] = {"type": "Lab", "count": 0}
+                time_slots_map[key]["count"] += 1
+
         summary = []
         for code, info in sorted(by_code.items()):
             fac_sec_map = {
@@ -120,6 +135,19 @@ class FeedCache:
             })
         self.courses_summary = summary
         self.faculties = sorted(faculties_set)
+
+        sorted_slots = []
+        for (s_min, e_min, s_str, e_str), meta in sorted(time_slots_map.items(), key=lambda x: (x[0][0], x[0][1])):
+            sorted_slots.append({
+                "label": f"{s_str} - {e_str}",
+                "start_str": s_str,
+                "end_str": e_str,
+                "start_minutes": s_min,
+                "end_minutes": e_min,
+                "type": meta["type"],
+                "count": meta["count"],
+            })
+        self.time_slots = sorted_slots
 
 
 cache = FeedCache()
@@ -263,6 +291,7 @@ def get_feed_info():
         "total_sections": len(feed.get("courses", [])),
         "courses": cache.courses_summary,
         "faculties": cache.faculties,
+        "time_slots": cache.time_slots,
     }
 
 

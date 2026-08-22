@@ -302,40 +302,97 @@
           </div>
 
           <!-- Skip Class Times -->
-          <div class="p-3 rounded-xl bg-slate-900/60 border border-slate-700/50 space-y-2">
-            <div class="flex items-center space-x-2">
-              <i data-lucide="clock" class="w-4 h-4 text-rose-400"></i>
-              <span class="text-sm font-medium text-slate-200">Skip Class Times</span>
+          <div class="p-3.5 rounded-xl bg-slate-900/60 border border-slate-700/50 space-y-3">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center space-x-2">
+                <i data-lucide="clock" class="w-4 h-4 text-rose-400"></i>
+                <span class="text-sm font-medium text-slate-200">Skip Class Times</span>
+              </div>
+              <span id="activeSkipRulesCount" class="text-[10px] font-medium text-rose-400/90 bg-rose-500/10 border border-rose-500/20 px-2 py-0.5 rounded-full hidden">
+                0 skipped
+              </span>
             </div>
-            <p class="text-xs text-slate-400">Drop sections having classes at these times:</p>
+            <p class="text-xs text-slate-400">Drop sections having classes at these times (all days or specific day):</p>
 
-            <!-- Preset Slot Pills -->
-            <div class="grid grid-cols-2 gap-2">
-              <label class="flex items-center space-x-2 p-2 rounded-lg bg-slate-900 border border-slate-700/70 text-xs cursor-pointer hover:border-slate-600 transition">
-                <input type="checkbox" class="skip-slot-checkbox rounded text-brand-600 bg-slate-900 border-slate-700" value="08:00 AM - 09:20 AM">
-                <span>08:00 AM slot</span>
-              </label>
-              <label class="flex items-center space-x-2 p-2 rounded-lg bg-slate-900 border border-slate-700/70 text-xs cursor-pointer hover:border-slate-600 transition">
-                <input type="checkbox" class="skip-slot-checkbox rounded text-brand-600 bg-slate-900 border-slate-700" value="05:00 PM - 06:20 PM">
-                <span>05:00 PM slot</span>
-              </label>
-              <label class="flex items-center space-x-2 p-2 rounded-lg bg-slate-900 border border-slate-700/70 text-xs cursor-pointer hover:border-slate-600 transition">
-                <input type="checkbox" class="skip-slot-checkbox rounded text-brand-600 bg-slate-900 border-slate-700" value="06:30 PM - 07:50 PM">
-                <span>06:30 PM slot</span>
-              </label>
-              <label class="flex items-center space-x-2 p-2 rounded-lg bg-slate-900 border border-slate-700/70 text-xs cursor-pointer hover:border-slate-600 transition">
-                <input type="checkbox" class="skip-slot-checkbox rounded text-brand-600 bg-slate-900 border-slate-700" value="08:00 PM - 09:20 PM">
-                <span>08:00 PM slot</span>
-              </label>
+            <!-- Quick Common Presets (All Days) -->
+            <div>
+              <div class="flex items-center justify-between mb-1.5">
+                <span class="text-[11px] font-medium text-slate-300">Quick Presets:</span>
+                <span class="text-[10px] text-slate-500">Click to toggle</span>
+              </div>
+              <div class="grid grid-cols-2 gap-1.5">
+                <button type="button" class="quick-skip-preset text-left px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-700/70 hover:border-rose-500/50 text-xs text-slate-300 transition flex items-center justify-between group" data-time="08:00 AM - 09:20 AM">
+                  <span class="font-mono text-[11px]">08:00 AM slot</span>
+                  <span class="preset-status text-[10px] text-slate-500 group-hover:text-rose-400 font-medium">+ Skip</span>
+                </button>
+                <button type="button" class="quick-skip-preset text-left px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-700/70 hover:border-rose-500/50 text-xs text-slate-300 transition flex items-center justify-between group" data-time="05:00 PM - 06:20 PM">
+                  <span class="font-mono text-[11px]">05:00 PM slot</span>
+                  <span class="preset-status text-[10px] text-slate-500 group-hover:text-rose-400 font-medium">+ Skip</span>
+                </button>
+                <button type="button" class="quick-skip-preset text-left px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-700/70 hover:border-rose-500/50 text-xs text-slate-300 transition flex items-center justify-between group" data-time="06:30 PM - 07:50 PM">
+                  <span class="font-mono text-[11px]">06:30 PM slot</span>
+                  <span class="preset-status text-[10px] text-slate-500 group-hover:text-rose-400 font-medium">+ Skip</span>
+                </button>
+                <button type="button" class="quick-skip-preset text-left px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-700/70 hover:border-rose-500/50 text-xs text-slate-300 transition flex items-center justify-between group" data-time="08:00 AM - 10:50 AM">
+                  <span class="font-mono text-[11px]">08:00 AM Lab</span>
+                  <span class="preset-status text-[10px] text-slate-500 group-hover:text-rose-400 font-medium">+ Skip</span>
+                </button>
+              </div>
             </div>
 
-            <!-- Custom Skip Input -->
-            <input
-              type="text"
-              id="customSkipTimesInput"
-              placeholder="Custom e.g. Sun 05:00 PM - 06:20 PM, 08:00 AM - 11:00 AM"
-              class="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-xs text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500"
-            >
+            <!-- Custom / Specific Day Skip Time Selector with Autocomplete -->
+            <div class="space-y-1.5 pt-1">
+              <div class="flex items-center justify-between">
+                <label class="block text-[11px] font-medium text-rose-300">
+                  Custom / Day-Specific Skip Slot:
+                </label>
+                <span class="text-[10px] text-slate-400">Default is All Days</span>
+              </div>
+
+              <div class="flex items-center space-x-1.5">
+                <!-- Day Dropdown (Default: All Days) -->
+                <select id="skipDaySelect" class="w-28 shrink-0 px-2 py-2 bg-slate-900 border border-slate-700 rounded-lg text-xs text-slate-100 focus:outline-none focus:ring-2 focus:ring-rose-500 font-medium">
+                  <option value="ALL" selected>All Days</option>
+                  <option value="Sun">Sunday</option>
+                  <option value="Mon">Monday</option>
+                  <option value="Tue">Tuesday</option>
+                  <option value="Wed">Wednesday</option>
+                  <option value="Thu">Thursday</option>
+                  <option value="Fri">Friday</option>
+                  <option value="Sat">Saturday</option>
+                </select>
+
+                <!-- Custom Time Input with Autocomplete Dropdown -->
+                <div class="relative flex-1">
+                  <input
+                    type="text"
+                    id="customSkipTimesInput"
+                    placeholder="Type or select time (e.g. 08:00 AM)..."
+                    autocomplete="off"
+                    class="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-xs text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-rose-500 transition"
+                  >
+                  <!-- Time suggestions floating dropdown -->
+                  <div id="skipTimesSuggestions" class="hidden absolute top-full left-0 right-0 mt-1 max-h-56 overflow-y-auto bg-slate-900/95 backdrop-blur-md border border-rose-500/30 rounded-xl shadow-2xl z-50 divide-y divide-slate-800/80"></div>
+                </div>
+
+                <!-- Add Button -->
+                <button
+                  type="button"
+                  id="addSkipTimeBtn"
+                  class="px-3 py-2 bg-rose-600 hover:bg-rose-500 text-white text-xs font-semibold rounded-lg shadow transition shrink-0 flex items-center space-x-1"
+                >
+                  <span>+ Add</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Active Skip Rules Chips Container -->
+            <div id="activeSkipRulesContainer" class="space-y-1.5 pt-1">
+              <div id="noSkipRulesPlaceholder" class="text-[11px] text-slate-500 italic py-0.5">
+                No time skip rules active.
+              </div>
+              <div id="skipRulesChipsList" class="flex flex-wrap gap-1.5"></div>
+            </div>
           </div>
 
           <!-- Sorting & Limits -->
