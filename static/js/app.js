@@ -961,14 +961,17 @@ document.addEventListener("DOMContentLoaded", () => {
       .map((code, idx) => {
         const colorIdx = idx % 7;
         return `
-        <div class="course-chip flex items-center space-x-1.5 px-2.5 py-1 rounded-xl border text-xs font-medium shadow-sm course-color-${colorIdx}">
-          <span class="font-mono font-bold">${code}</span>
-          <button type="button" class="inspect-course-btn p-0.5 hover:opacity-80" data-code="${code}" title="Inspect Sections">
-            <i data-lucide="info" class="w-3.5 h-3.5"></i>
-          </button>
-          <button type="button" class="remove-course-btn p-0.5 hover:text-red-400 transition" data-code="${code}" title="Remove">
-            <i data-lucide="x" class="w-3.5 h-3.5"></i>
-          </button>
+        <div class="course-chip group flex items-center space-x-2 px-3 py-1.5 rounded-xl border text-xs font-semibold shadow-md transition-all duration-200 transform hover:-translate-y-0.5 course-color-${colorIdx}">
+          <span class="w-2.5 h-2.5 rounded-full inline-block course-dot-${colorIdx}"></span>
+          <span class="font-mono tracking-wide">${code}</span>
+          <div class="flex items-center space-x-0.5 border-l border-white/20 pl-1.5 ml-0.5">
+            <button type="button" class="inspect-course-btn p-1 rounded-md hover:bg-white/20 transition opacity-80 hover:opacity-100" data-code="${code}" title="Inspect Sections for ${code}">
+              <i data-lucide="info" class="w-3.5 h-3.5"></i>
+            </button>
+            <button type="button" class="remove-course-btn p-1 rounded-md hover:bg-red-500/40 hover:text-red-100 transition opacity-80 hover:opacity-100" data-code="${code}" title="Remove ${code}">
+              <i data-lucide="x" class="w-3.5 h-3.5"></i>
+            </button>
+          </div>
         </div>
       `;
       })
@@ -1241,6 +1244,23 @@ document.addEventListener("DOMContentLoaded", () => {
       if (state.currentCombinations.length === 0) {
         loadingState.classList.add("hidden");
         emptyState.classList.remove("hidden");
+
+        const activeConstraints = [];
+        if (onlyOpenCheckbox.checked) activeConstraints.push("Only Open Seats");
+        if (exactDaysCheckbox.checked && state.targetDays > 0) activeConstraints.push(`Exact ${state.targetDays} Days`);
+        if (state.skipTimes.length > 0) activeConstraints.push(`${state.skipTimes.length} Skipped Time Slot(s)`);
+        if (avoidFacultyInput && avoidFacultyInput.value.trim()) activeConstraints.push("Avoided Faculty Filter");
+        if (mandatoryFacultyCheckbox.checked) activeConstraints.push("Mandatory Preferred Faculty");
+
+        const constraintsHtml = activeConstraints.length > 0
+          ? `<div class="mt-3 p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-300 text-left text-xs">
+              <span class="font-semibold">⚠️ Active filters that may be restricting sections:</span>
+              <ul class="list-disc list-inside mt-1 text-slate-300 space-y-0.5">
+                ${activeConstraints.map((c) => `<li>${c}</li>`).join("")}
+              </ul>
+            </div>`
+          : "";
+
         emptyState.innerHTML = `
           <div class="w-16 h-16 rounded-2xl bg-rose-500/20 border border-rose-500/30 flex items-center justify-center mx-auto text-rose-400">
             <i data-lucide="alert-circle" class="w-8 h-8"></i>
@@ -1250,12 +1270,14 @@ document.addEventListener("DOMContentLoaded", () => {
             <p class="text-xs text-slate-300 mt-1">
               Every combination of the selected course sections has a class-time, lab, or exam clash.
             </p>
+            ${constraintsHtml}
             <div class="mt-4 p-3 rounded-xl bg-slate-900 border border-slate-700/60 text-left text-xs text-slate-300 space-y-1.5">
-              <p class="font-semibold text-brand-300">💡 Tips to resolve clashes:</p>
+              <p class="font-semibold text-brand-300">💡 Quick fixes:</p>
               <ul class="list-disc list-inside space-y-1 text-slate-400">
-                <li>Check if mandatory sections clash with each other.</li>
-                <li>Turn off <b>"Only Open Seats"</b> or <b>"Exact Days"</b> filter.</li>
-                <li>Uncheck some <b>"Skip Class Times"</b> slots.</li>
+                <li>Check if mandatory sections clash in meeting times or exam dates.</li>
+                <li>Turn off <b>"Only Open Seats"</b> or <b>"Exact Days"</b>.</li>
+                <li>Remove time slot rules in <b>"Skip Class Times"</b>.</li>
+                <li>Check details in <b>"Engine Execution Logs"</b> below.</li>
               </ul>
             </div>
           </div>
@@ -1272,10 +1294,27 @@ document.addEventListener("DOMContentLoaded", () => {
       sortNotice.textContent = `(Sorted by: ${state.sortKeys.join(", ")})`;
 
       renderCurrentSchedule();
-      showToast(`Found ${data.total_valid} valid schedules!`, "success");
+      showToast(`Found ${data.total_valid.toLocaleString()} valid schedules!`, "success");
     } catch (err) {
       loadingState.classList.add("hidden");
       emptyState.classList.remove("hidden");
+      emptyState.innerHTML = `
+        <div class="w-16 h-16 rounded-2xl bg-rose-500/20 border border-rose-500/30 flex items-center justify-center mx-auto text-rose-400">
+          <i data-lucide="alert-triangle" class="w-8 h-8"></i>
+        </div>
+        <div class="max-w-md mx-auto">
+          <h3 class="text-base font-semibold text-white">Could Not Generate Schedules</h3>
+          <p class="text-xs text-rose-300 mt-1.5 bg-rose-950/40 p-3 rounded-xl border border-rose-800/40 font-medium">
+            ${err.message}
+          </p>
+          <div class="mt-4 flex items-center justify-center space-x-3">
+            <button type="button" onclick="document.getElementById('resetPrefsBtn').click()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-200 rounded-lg border border-slate-700 transition">
+              Reset Preferences
+            </button>
+          </div>
+        </div>
+      `;
+      lucide.createIcons();
       showToast(err.message, "error");
     } finally {
       generateBtn.disabled = false;

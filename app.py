@@ -437,19 +437,20 @@ def generate_schedules(req: GenerateRequest):
 
         per_course_lists.append(rows)
 
-    # Combinations calculation
-    import itertools
+    def sections_clash(r1, r2):
+        for m1 in r1["all_meetings"]:
+            for m2 in r2["all_meetings"]:
+                if sc.meetings_conflict(m1, m2):
+                    return True
+        if sc.exam_conflict(r1["exam"], r2["exam"]):
+            return True
+        return False
 
+    # Combinations calculation via fast backtracking search with pruning
     total_raw = 1
     for r_list in per_course_lists:
         total_raw *= len(r_list)
-    log(f"Checking {total_raw} raw combination(s)...")
-
-    if total_raw > 500000:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Too many raw combinations ({total_raw}). Please narrow down using mandatory sections or faculty preferences.",
-        )
+    log(f"Evaluating combinations across {len(per_course_lists)} courses (total potential space: {total_raw:,})...")
 
     # Sort logic
     sort_keys_combined = req.sort_by
@@ -459,22 +460,41 @@ def generate_schedules(req: GenerateRequest):
     sort_key_fn, sort_keys = sc.build_sort_key_fn(sort_keys_combined, prefer_prefs, target_days=req.target_days, on_warning=log)
 
     valid = []
-    for combo in itertools.product(*per_course_lists):
-        if not sc.is_valid_combo(combo):
-            continue
-        if req.exact_days and req.target_days is not None and sc.days_used_score(combo) != req.target_days:
-            continue
-        for r in combo:
-            r["_pref_match"] = sc.section_matches_faculty_pref(r, prefer_prefs)
-        stats = {
-            "gap": sc.gap_score(combo),
-            "days": sc.days_used_score(combo),
-            "days_list": extract_active_days(combo),
-            "faculty_matches": sc.faculty_match_count(combo, prefer_prefs),
-            "target_days_diff": sc.target_days_score(combo, req.target_days) if req.target_days is not None else 0,
-        }
-        valid.append((combo, stats, sort_key_fn(combo)))
+    MAX_VALID_CAP = 50000
+    n_courses = len(per_course_lists)
 
+    def backtrack(depth, current_combo):
+        if depth == n_courses:
+            combo = tuple(current_combo)
+            if req.exact_days and req.target_days is not None and sc.days_used_score(combo) != req.target_days:
+                return False
+            for r in combo:
+                r["_pref_match"] = sc.section_matches_faculty_pref(r, prefer_prefs)
+            stats = {
+                "gap": sc.gap_score(combo),
+                "days": sc.days_used_score(combo),
+                "days_list": extract_active_days(combo),
+                "faculty_matches": sc.faculty_match_count(combo, prefer_prefs),
+                "target_days_diff": sc.target_days_score(combo, req.target_days) if req.target_days is not None else 0,
+            }
+            valid.append((combo, stats, sort_key_fn(combo)))
+            return len(valid) >= MAX_VALID_CAP
+
+        for section in per_course_lists[depth]:
+            has_clash = False
+            for prev_sec in current_combo:
+                if sections_clash(prev_sec, section):
+                    has_clash = True
+                    break
+            if not has_clash:
+                current_combo.append(section)
+                stop = backtrack(depth + 1, current_combo)
+                current_combo.pop()
+                if stop:
+                    return True
+        return False
+
+    backtrack(0, [])
     total_valid = len(valid)
     log(f"Found {total_valid} conflict-free combination(s).")
 
