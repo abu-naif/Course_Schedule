@@ -444,13 +444,13 @@
                 <span id="sortNotice" class="text-xs text-slate-400 font-mono"></span>
               </div>
 
-              <button id="toggleFullscreenBtn" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 hover:text-white text-xs flex items-center space-x-1.5 transition" title="Toggle Fullscreen Routine View">
-                <i data-lucide="more-horizontal" class="w-3.5 h-3.5"></i>
-                <span id="toggleFullscreenText" class="hidden sm:inline">Fullscreen</span>
+              <button id="toggleFullscreenBtn" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 hover:text-white text-xs flex items-center space-x-1.5 transition" title="Expand routine by hiding course controls">
+                <i data-lucide="maximize-2" class="w-3.5 h-3.5"></i>
+                <span id="toggleFullscreenText">Expand</span>
               </button>
             </div>
 
-            <!-- 1. WEEKLY CLASS ROUTINE MATRIX (Matching PDF Table Layout) -->
+            <!-- Weekly overview and a readable day-by-day view share the same schedule data. -->
             <div class="space-y-2">
               <div class="routine-toolbar flex flex-wrap items-center justify-between gap-2">
                 
@@ -465,6 +465,10 @@
 
                 <!-- Right Controls: Next/Prev Page + Zoom Controls -->
                 <div class="routine-controls flex flex-wrap items-center gap-2">
+                  <div class="routine-view-switch" role="group" aria-label="Routine view">
+                    <button type="button" id="routineWeekBtn" aria-pressed="true" aria-controls="routineScrollContainer">Week</button>
+                    <button type="button" id="routineDayBtn" aria-pressed="false" aria-controls="routineAgenda">By day</button>
+                  </div>
                   
                   <!-- Page Navigation Controls (Next/Prev Page) -->
                   <div class="routine-pagination flex items-center space-x-1 bg-slate-900 px-1.5 py-1 rounded-lg border border-slate-700 text-xs">
@@ -490,15 +494,15 @@
                       <option value="0.7">70%</option>
                       <option value="0.75">75%</option>
                       <option value="0.8">80%</option>
-                      <option value="0.85" selected>85%</option>
+                      <option value="0.85">85%</option>
                       <option value="0.9">90%</option>
-                      <option value="1.0">100%</option>
+                      <option value="1.0" selected>100%</option>
                       <option value="1.15">115%</option>
                     </select>
                     <button id="routineZoomInBtn" class="p-1 rounded hover:bg-slate-800 text-slate-300 hover:text-white transition" title="Zoom In (+10%)">
                       <i data-lucide="zoom-in" class="w-3.5 h-3.5"></i>
                     </button>
-                    <button id="routineZoomResetBtn" aria-label="Reset zoom to 85%" class="px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-slate-200 text-[10px] font-mono border border-slate-700 transition" title="Reset Zoom to 85%">
+                    <button id="routineZoomResetBtn" aria-label="Reset zoom to 100%" class="px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-slate-200 text-[10px] font-mono border border-slate-700 transition" title="Reset Zoom to 100%">
                       <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
                     </button>
                   </div>
@@ -506,9 +510,14 @@
                 </div>
               </div>
 
+              <div id="routineInsights" class="routine-insights" aria-label="Schedule overview"></div>
+              <div id="routineLegend" class="routine-legend" aria-label="Course color key"></div>
+              <p id="routineScrollHint" class="routine-scroll-hint">Swipe or scroll sideways to see every day. Time labels stay on the left.</p>
+              <div id="routineAgenda" class="routine-agenda" hidden></div>
               <div id="routineScrollContainer" class="overflow-x-auto rounded-xl border border-slate-700 shadow-xl bg-slate-900/90 p-1">
                 <div id="routineZoomWrapper" class="transition-transform duration-150 origin-top-left inline-block min-w-full">
                   <table id="timetableGrid" class="w-full border-collapse text-xs">
+                    <caption class="sr-only">Weekly class routine. Each row is a time slot and each column is a day.</caption>
                     <thead>
                       <tr class="bg-[#16324f] text-white border-b border-slate-700 text-[11px]">
                         <th class="p-1.5 sm:p-2 text-left font-bold w-24 sm:w-28 border-r border-slate-700">Time/Day</th>

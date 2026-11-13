@@ -130,3 +130,22 @@ References:
 - https://docs.github.com/en/get-started/using-git/pushing-commits-to-a-remote-repository
 - https://git-scm.com/docs/git-pull
 - https://docs.github.com/en/authentication/connecting-to-github-with-ssh
+
+## Verify the exact analyzer after an update
+
+```bash
+./venv/bin/python -m unittest discover -s tests -v
+```
+
+The search reuses pair-conflict checks and keeps the best requested schedules
+with stable ties. It counts the complete valid set rather than stopping after
+50,000 results. Proven noncompetitive branches can be counted without scoring
+every leaf; class, lab, parsed-exam and exact-day checks remain in effect.
+
+Identical web requests reuse a bounded in-memory result cache only for the same
+feed object and request settings. A fetched or manually refreshed feed invalidates
+reuse. Restarting the application also clears that cache. Initial feed downloads
+and difficult searches can still take time; the server's CPU affects performance.
+
+Phones start with the By day routine; Week and Expand provide a larger overview.
+The production stylesheet is already built and committed with these changes.

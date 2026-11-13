@@ -415,3 +415,67 @@ html:not(.dark) .open-seats-toggle > svg { color:#047857; }
   .routine-controls { width:100%; }
   .routine-controls > div { flex-shrink:0; }
 }
+
+/* Readable routine: one color per course, explicit labels, and full-size text. */
+.routine-view-switch { display:flex; padding:3px; gap:3px; border:1px solid var(--line); border-radius:10px; background:var(--inset); }
+.routine-view-switch button { color:var(--muted); padding:5px 12px; font-size:12px; border-radius:7px; }
+.routine-view-switch button[aria-pressed="true"] { background:#2563eb; color:white; }
+.routine-insights { display:flex; flex-wrap:wrap; gap:6px; padding-top:6px; }
+.routine-insights > span { font-size:11px; padding:5px 9px; border:1px solid var(--line); border-radius:7px; color:var(--muted); background:var(--inset); }
+.routine-legend { display:flex; flex-wrap:wrap; gap:8px 14px; padding:8px 0 4px; }
+.routine-legend-item { display:inline-flex; align-items:center; gap:6px; font-size:11px; font-weight:600; background:none !important; border:none !important; box-shadow:none !important; color:var(--ink) !important; }
+.course-color-0 { --course-accent:#818cf8; }
+.course-color-1 { --course-accent:#38bdf8; }
+.course-color-2 { --course-accent:#c084fc; }
+.course-color-3 { --course-accent:#f472b6; }
+.course-color-4 { --course-accent:#fbbf24; }
+.course-color-5 { --course-accent:#34d399; }
+.course-color-6 { --course-accent:#fb7185; }
+.routine-legend-dot { width:8px; height:8px; border-radius:3px; background:var(--course-accent); }
+.routine-scroll-hint { font-size:11px; color:var(--muted); padding:4px 0; }
+#routineScrollContainer { padding:0; background:var(--inset) !important; box-shadow:none; isolation:isolate; }
+#timetableGrid { min-width:1120px; table-layout:fixed; border-collapse:separate; border-spacing:0; }
+#timetableGrid th,#timetableGrid td { border-right:1px solid var(--line); border-bottom:1px solid var(--line); }
+#timetableGrid thead th { padding:13px 6px; font-size:12px; font-weight:650; text-align:center; }
+#timetableGrid thead th small { display:block; color:#afc7eb; font-size:10px; font-weight:400; margin-top:4px; }
+#timetableGrid thead th:first-child { width:116px; text-align:left; padding-left:12px; position:sticky; left:0; z-index:3; }
+#timetableGrid .routine-time-cell { position:sticky; left:0; z-index:2; width:116px; padding:14px 10px; background:var(--surface) !important; color:var(--ink) !important; text-align:left; font-variant-numeric:tabular-nums; box-shadow:3px 0 8px #00000008; font-size:11px; font-weight:600; }
+.routine-time-cell small,.routine-agenda-time small { display:block; color:var(--muted); font-size:10px; font-weight:400; margin-top:5px; }
+#timetableGrid .routine-event-cell { padding:7px; vertical-align:top; background:var(--inset); }
+#timetableGrid .routine-empty-cell { padding:12px; text-align:center; color:var(--line); background:var(--inset); }
+#timetableGrid tbody tr { height:68px; }
+.routine-course-card[class*="course-color-"] { background:color-mix(in srgb,var(--course-accent) 12%,var(--surface)) !important; border:1px solid color-mix(in srgb,var(--course-accent) 30%,var(--line)); border-left:3px solid var(--course-accent); border-radius:9px; padding:10px; color:var(--ink) !important; box-shadow:none; font-weight:400; min-width:0; }
+.routine-course-card + .routine-course-card { margin-top:6px; }
+.routine-course-heading { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:5px; }
+.routine-course-heading strong { font-size:13px; letter-spacing:.1px; }
+.routine-kind { font-size:9px; text-transform:uppercase; letter-spacing:.5px; font-weight:600; color:var(--ink); opacity:.8; }
+.routine-section { margin-top:4px; font-size:11px; color:var(--muted); }
+.routine-course-meta { display:flex; flex-direction:column; gap:4px; margin-top:10px; font-size:10px; line-height:1.4; color:var(--muted); overflow-wrap:anywhere; }
+.routine-course-meta b { color:var(--ink); font-weight:500; }
+.routine-agenda { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr)); gap:12px; }
+.routine-day-section { padding:15px; border:1px solid var(--line); border-radius:12px; background:var(--inset); }
+.routine-day-section h4 { display:flex; align-items:center; justify-content:space-between; gap:8px; padding-bottom:12px; margin-bottom:12px; border-bottom:1px solid var(--line); font-size:14px; color:var(--ink); font-weight:650; }
+.routine-day-section h4 > span { font-size:10px; color:var(--muted); font-weight:400; }
+.routine-agenda-event { display:grid; grid-template-columns:80px minmax(0,1fr); gap:10px; align-items:start; margin-top:10px; }
+.routine-agenda-time { padding-top:10px; font-size:11px; font-variant-numeric:tabular-nums; font-weight:600; color:var(--ink); }
+.routine-agenda .routine-course-meta { flex-direction:row; flex-wrap:wrap; gap:6px 14px; font-size:11px; }
+.routine-free-days { grid-column:1/-1; border:1px dashed var(--line); border-radius:10px; padding:12px 15px; color:var(--muted); font-size:12px; line-height:1.6; }
+@media(min-width:1024px) { main.max-w-7xl { max-width:1440px; } }
+@media(max-width:767px) {
+ .routine-controls { gap:6px !important; }
+ .routine-controls .routine-view-switch { order:0; }
+ .routine-controls .routine-pagination { margin-left:auto; }
+ .routine-title h3 { font-size:13px; }
+ .routine-day-section { padding:12px; }
+ .routine-agenda .routine-course-heading strong { font-size:14px; }
+ .routine-agenda .routine-course-card { padding:11px; }
+}
+@media print {
+ .routine-view-switch,.routine-controls,.routine-scroll-hint,#routineAgenda { display:none !important; }
+ #routineScrollContainer[hidden] { display:block !important; height:auto !important; overflow:visible; }
+ #routineZoomWrapper { transform:none !important; width:100% !important; }
+ #timetableGrid { min-width:0; table-layout:auto; }
+}
+html:not(.dark) .routine-course-card[class*="course-color-"] { font-weight:400; border:1px solid color-mix(in srgb,var(--course-accent) 30%,var(--line)); border-left:3px solid var(--course-accent); }
+html:not(.dark) .routine-view-switch button[aria-pressed="true"] { background:#2563eb; color:#fff !important; }
+html:not(.dark) .routine-view-switch button[aria-pressed="false"] { color:var(--muted); }

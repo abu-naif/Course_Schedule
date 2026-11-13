@@ -45,6 +45,8 @@ schedule-parsing helpers, so keep them in the same folder.
 import argparse
 import csv
 import itertools
+import heapq
+from functools import lru_cache
 import re
 import sys
 from datetime import datetime
@@ -562,6 +564,191 @@ def build_sort_key_fn(sort_by, prefs, target_days=None, on_warning=print):
         return tuple(funcs[k](combo) for k in keys)
 
     return key_fn, keys
+
+
+def search_combinations(per_course_lists, sort_keys, prefs, target_days=None,
+                        exact_days=False, max_results=30):
+    """Count every valid combination and retain the exact best results.
+
+    Pair conflicts are evaluated once, then propagated as integer bitsets.
+    No sampling, search cap, or approximate scoring is used. Original course
+    and section order breaks ties, matching a stable sort of itertools.product.
+    """
+    n = len(per_course_lists)
+    if not n or any(not rows for rows in per_course_lists):
+        return 0, []
+    day_names = {meeting.day for rows in per_course_lists for row in rows
+                 for meeting in row["all_meetings"]}
+    day_bits = {day: 1 << i for i, day in enumerate(sorted(day_names))}
+    masks, matches, starts, ends = [], [], [], []
+    for rows in per_course_lists:
+        masks.append([sum(day_bits[day] for day in {m.day for m in row["all_meetings"]}) for row in rows])
+        matches.append([int(section_matches_faculty_pref(row, prefs)) for row in rows])
+        starts.append([min((m.start_minutes for m in row["all_meetings"]), default=None) for row in rows])
+        ends.append([max((m.end_minutes for m in row["all_meetings"]), default=0) for row in rows])
+    compatible = [[[0] * n for _ in rows] for rows in per_course_lists]
+    for i in range(n):
+        for j in range(i + 1, n):
+            for a, first in enumerate(per_course_lists[i]):
+                for b, second in enumerate(per_course_lists[j]):
+                    clash = exam_conflict(first["exam"], second["exam"]) or any(
+                        meetings_conflict(m1, m2)
+                        for m1 in first["all_meetings"] for m2 in second["all_meetings"]
+                    )
+                    if not clash:
+                        compatible[i][a][j] |= 1 << b
+                        compatible[j][b][i] |= 1 << a
+    course_days = []
+    for course_masks in masks:
+        union = 0
+        for mask in course_masks:
+            union |= mask
+        course_days.append(union)
+    indices = [-1] * n
+    best = []
+    total_valid = 0
+    limit = max(0, max_results)
+    needs_gap = "gap" in sort_keys
+
+    # Counting a proven noncompetitive branch does not require scoring each leaf.
+    # Memo keys contain only constraints that affect validity, not ranking data.
+    enforce_days = exact_days and target_days is not None
+
+    @lru_cache(maxsize=16384)
+    def count_subtree(remaining, active_domains, used_days):
+        if enforce_days:
+            if used_days.bit_count() > target_days:
+                return 0
+            possible = used_days
+            for course in remaining:
+                possible |= course_days[course]
+            if possible.bit_count() < target_days:
+                return 0
+        if not remaining:
+            return int(not enforce_days or used_days.bit_count() == target_days)
+        position = min(range(len(remaining)), key=lambda p: (active_domains[p].bit_count(), remaining[p]))
+        course = remaining[position]
+        others = tuple(i for i in remaining if i != course)
+        other_domains = tuple(domain for p, domain in enumerate(active_domains) if p != position)
+        candidates = active_domains[position]
+        count = 0
+        while candidates:
+            bit = candidates & -candidates
+            candidates ^= bit
+            section = bit.bit_length() - 1
+            next_domains = tuple(domain & compatible[course][section][other]
+                                 for other, domain in zip(others, other_domains))
+            if all(next_domains):
+                next_days = (used_days | masks[course][section]) if enforce_days else 0
+                count += count_subtree(others, next_domains, next_days)
+        return count
+
+    @lru_cache(maxsize=4096)
+    def domain_summary(course, domain):
+        mandatory_days = None
+        possible_days = 0
+        best_faculty = 0
+        candidates = domain
+        while candidates:
+            bit = candidates & -candidates
+            candidates ^= bit
+            section = bit.bit_length() - 1
+            days = masks[course][section]
+            mandatory_days = days if mandatory_days is None else mandatory_days & days
+            possible_days |= days
+            best_faculty = max(best_faculty, matches[course][section])
+        return mandatory_days or 0, possible_days, best_faculty
+
+    bounded_keys = set(sort_keys) <= {"none", "faculty", "days", "target_days"}
+
+    def visit(remaining, domains, used_days, faculty_count, first_start, last_end):
+        nonlocal total_valid
+        if exact_days and target_days is not None:
+            if used_days.bit_count() > target_days:
+                return
+            possible_days = used_days
+            for course in remaining:
+                possible_days |= course_days[course]
+            if possible_days.bit_count() < target_days:
+                return
+        if remaining and limit and len(best) == limit and bounded_keys:
+            mandatory_days = used_days
+            possible_days = used_days
+            possible_faculty = faculty_count
+            for course in remaining:
+                must, possible, faculty = domain_summary(course, domains[course])
+                mandatory_days |= must
+                possible_days |= possible
+                possible_faculty += faculty
+            minimum_days = mandatory_days.bit_count()
+            maximum_days = possible_days.bit_count()
+            minimum_diff = 0 if target_days is None or minimum_days <= target_days <= maximum_days else min(
+                abs(minimum_days - target_days), abs(maximum_days - target_days))
+            bounds = {"none": 0, "faculty": -possible_faculty,
+                      "days": minimum_days, "target_days": minimum_diff}
+            earliest_indices = tuple(indices[i] if indices[i] >= 0 else (domains[i] & -domains[i]).bit_length() - 1
+                                     for i in range(n))
+            inverse_bound = tuple(-bounds[key] for key in sort_keys) + tuple(-i for i in earliest_indices)
+            if inverse_bound <= best[0][0]:
+                total_valid += count_subtree(remaining, tuple(domains[i] for i in remaining), used_days if enforce_days else 0)
+                return
+        if not remaining:
+            total_valid += 1
+            if not limit:
+                return
+            values = {
+                "none": 0, "faculty": -faculty_count,
+                "days": used_days.bit_count(),
+                "target_days": abs(used_days.bit_count() - target_days) if target_days is not None else 0,
+                "earliest": first_start if first_start is not None else 0,
+                "latest": -last_end,
+            }
+            if needs_gap:
+                values["gap"] = gap_score(tuple(per_course_lists[i][idx] for i, idx in enumerate(indices)))
+            # Python has a min-heap: negation keeps the worst retained result at its root.
+            inverse_rank = tuple(-values[key] for key in sort_keys) + tuple(-idx for idx in indices)
+            entry = (inverse_rank, tuple(indices))
+            if len(best) < limit:
+                heapq.heappush(best, entry)
+            elif inverse_rank > best[0][0]:
+                heapq.heapreplace(best, entry)
+            return
+        course = min(remaining, key=lambda i: (domains[i].bit_count(), i))
+        next_remaining = tuple(i for i in remaining if i != course)
+        candidates = domains[course]
+        while candidates:
+            bit = candidates & -candidates
+            candidates ^= bit
+            section = bit.bit_length() - 1
+            next_days = used_days | masks[course][section]
+            if exact_days and target_days is not None and next_days.bit_count() > target_days:
+                continue
+            next_domains = list(domains)
+            for other in next_remaining:
+                next_domains[other] &= compatible[course][section][other]
+                if not next_domains[other]:
+                    break
+            else:
+                indices[course] = section
+                start = starts[course][section]
+                next_start = first_start if start is None else start if first_start is None else min(first_start, start)
+                visit(next_remaining, next_domains, next_days,
+                      faculty_count + matches[course][section], next_start,
+                      max(last_end, ends[course][section]))
+                indices[course] = -1
+
+    visit(tuple(range(n)), [(1 << len(rows)) - 1 for rows in per_course_lists], 0, 0, None, 0)
+    retained = []
+    for inverse_rank, section_indices in sorted(best, key=lambda entry: tuple(-v for v in entry[0])):
+        combo = tuple(per_course_lists[i][idx] for i, idx in enumerate(section_indices))
+        stats = {
+            "gap": gap_score(combo), "days": days_used_score(combo),
+            "faculty_matches": faculty_match_count(combo, prefs),
+        }
+        if target_days is not None:
+            stats["target_days_diff"] = target_days_score(combo, target_days)
+        retained.append((combo, stats, tuple(-v for v in inverse_rank[:len(sort_keys)])))
+    return total_valid, retained
 
 
 # --------------------------------------------------------------------------
@@ -1177,33 +1364,15 @@ def run_combinator(
     for rows in per_course_lists:
         total_raw *= len(rows)
     log(f"Checking {total_raw} raw section combination(s) for clashes...")
-    if total_raw > 500000:
-        raise CombinatorError(
-            "that's too many raw combinations to check in one go. Narrow it down with mandatory sections, --only-open, "
-            "or split the courses into smaller batches."
-        )
-
     prefs = parse_faculty_preferences(prefer_faculty)
-    sort_key_fn, sort_keys = build_sort_key_fn(sort_by, prefs, target_days=target_days, on_warning=log)
-
-    valid = []
-    for combo in itertools.product(*per_course_lists):
-        if not is_valid_combo(combo):
-            continue
-        if exact_days and days_used_score(combo) != target_days:
-            continue
-        for r in combo:
-            r["_pref_match"] = section_matches_faculty_pref(r, prefs)
-        stats = {
-            "gap": gap_score(combo),
-            "days": days_used_score(combo),
-            "faculty_matches": faculty_match_count(combo, prefs),
-        }
-        if target_days is not None:
-            stats["target_days_diff"] = target_days_score(combo, target_days)
-        valid.append((combo, stats, sort_key_fn(combo)))
-
-    total_valid = len(valid)
+    _, sort_keys = build_sort_key_fn(sort_by, prefs, target_days=target_days, on_warning=log)
+    total_valid, valid = search_combinations(
+        per_course_lists, sort_keys, prefs, target_days=target_days,
+        exact_days=exact_days, max_results=max_results,
+    )
+    for combo, _, _ in valid:
+        for row in combo:
+            row["_pref_match"] = section_matches_faculty_pref(row, prefs)
     log(f"Found {total_valid} conflict-free combination(s).")
 
     if total_valid == 0:

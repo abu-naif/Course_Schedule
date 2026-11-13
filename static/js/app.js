@@ -1294,7 +1294,8 @@ document.addEventListener("DOMContentLoaded", () => {
       loadingState.classList.add("hidden");
       activeResultsView.classList.remove("hidden");
       validCountBadge.textContent = `${data.total_valid.toLocaleString()} clash-free schedule${data.total_valid > 1 ? "s" : ""} found`;
-      sortNotice.textContent = `(Sorted by: ${state.sortKeys.join(", ")})`;
+      const sortLabels = {faculty: "Preferred faculty", days: "Fewer days", gap: "Smaller gaps", target_days: "Desired days", earliest: "Earlier start", latest: "Later finish", none: "Section order"};
+      sortNotice.textContent = state.sortKeys.length ? `Ranked by ${state.sortKeys.map((key) => sortLabels[key] || key).join(" · ")}` : "";
 
       renderCurrentSchedule();
       showToast(`Found ${data.total_valid.toLocaleString()} valid schedules!`, "success");
@@ -1351,54 +1352,64 @@ document.addEventListener("DOMContentLoaded", () => {
     if (metricDays) metricDays.textContent = `${current.stats.days} Days (${current.stats.days_list ? current.stats.days_list.join(", ") : ""})`;
     if (metricFaculty) metricFaculty.textContent = `${current.stats.faculty_matches} match(es)`;
 
-    // Render Weekly Routine Matrix (Matching PDF Layout)
+    // Use one set of events for the weekly grid, legend and phone-friendly day list.
     const dayOrder = ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"];
-
-    // Build course to color index map
+    const dayName = (day) => day.charAt(0) + day.slice(1).toLowerCase();
+    const escape = (value) => String(value ?? "").replace(/[&<>"']/g, (character) => ({
+      "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+    }[character]));
     const courseColorMap = {};
-    state.selectedCourses.forEach((code, i) => {
-      courseColorMap[code] = i % 7;
-    });
+    state.selectedCourses.forEach((code, i) => { courseColorMap[code] = i % 7; });
+    const colorFor = (code) => courseColorMap[code] ?? courseColorMap[code.replace(/L$/, "")] ?? 0;
+    const card = (item) => {
+      const isLab = item.type === "Lab" || item.course.endsWith("L");
+      return `<div class="routine-course-card course-color-${colorFor(item.course)}">
+        <div class="routine-course-heading"><strong>${escape(item.course)}</strong><span class="routine-kind">${isLab ? "Lab" : "Class"}</span></div>
+        <div class="routine-section">Section ${escape(item.section || "TBA")}</div>
+        <div class="routine-course-meta"><span>Faculty <b>${escape(item.faculty || "TBA")}</b></span><span>Room <b>${escape(item.room || "TBA")}</b></span></div>
+      </div>`;
+    };
+    const timeLabel = (label) => {
+      const parts = label.split(/\s*[-–—]\s*/);
+      return parts.length === 2 ? `<span>${escape(parts[0])}</span><small>to ${escape(parts[1])}</small>` : `<span>${escape(label)}</span>`;
+    };
+    const dayEvents = Object.fromEntries(dayOrder.map((day) => [day,
+      current.grid.flatMap((row) => (row.days[day] || []).map((item) => ({ time: row.time_label, item })))
+    ]));
+    document.getElementById("routineLegend").innerHTML = state.selectedCourses.map((code) =>
+      `<span class="routine-legend-item course-color-${colorFor(code)}"><span class="routine-legend-dot" aria-hidden="true"></span>${escape(code)}</span>`
+    ).join("");
+    document.getElementById("routineInsights").innerHTML = [
+      `${state.selectedCourses.length} course${state.selectedCourses.length === 1 ? "" : "s"}`,
+      `${current.stats.days} class day${current.stats.days === 1 ? "" : "s"}`,
+      `${current.stats.gap} min total gaps`
+    ].map((label) => `<span>${escape(label)}</span>`).join("");
 
     if (timetableGridBody) {
-      timetableGridBody.innerHTML = current.grid
-        .map((row, rIdx) => {
-          const bgClass = rIdx % 2 === 0 ? "bg-slate-900/60" : "bg-slate-950/40";
-          const timeCell = `<td class="p-2 font-bold font-mono text-[10.5px] text-slate-300 border-r border-slate-700 whitespace-nowrap bg-[#16324f]/30 leading-snug">${row.time_label}</td>`;
-          const dayCells = dayOrder
-            .map((day) => {
-              const items = row.days[day] || [];
-              if (items.length === 0) {
-                return `<td class="p-1 border-r border-slate-800/80 text-center"></td>`;
-              }
-              const blockContent = items
-                .map((it) => {
-                  const isLab = it.type === "Lab" || it.course.endsWith("L");
-                  const colorIdx = courseColorMap[it.course] !== undefined ? courseColorMap[it.course] : 0;
-                  return `
-                  <div class="timetable-block p-1.5 rounded-lg border text-xs font-medium leading-snug course-color-${colorIdx} mb-1 shadow-sm">
-                    <div class="flex items-center justify-between space-x-1">
-                      <span class="font-bold font-mono text-xs">${it.course}</span>
-                      <span class="text-[9px] px-1.5 py-0.2 rounded font-semibold ${isLab ? "bg-amber-500/20 text-amber-300 border border-amber-500/30" : "bg-brand-500/20 text-brand-300 border border-brand-500/30"}">
-                        ${isLab ? "LAB" : "Sec " + it.section}
-                      </span>
-                    </div>
-                    <div class="text-[10px] opacity-90 mt-0.5 flex items-center justify-between">
-                      <span class="font-medium text-slate-300">${it.faculty || "TBA"}</span>
-                      <span class="font-mono text-slate-400">🏢 ${it.room || "TBA"}</span>
-                    </div>
-                  </div>
-                `;
-                })
-                .join("");
-              return `<td class="p-1 border-r border-slate-800/80 align-top">${blockContent}</td>`;
-            })
-            .join("");
-
-          return `<tr class="${bgClass}">${timeCell}${dayCells}</tr>`;
-        })
-        .join("");
+      timetableGridBody.innerHTML = current.grid.map((row) => {
+        const timeCell = `<th scope="row" class="routine-time-cell">${timeLabel(row.time_label)}</th>`;
+        return `<tr>${timeCell}${dayOrder.map((day) => {
+          const items = row.days[day] || [];
+          return items.length
+            ? `<td class="routine-event-cell">${items.map(card).join("")}</td>`
+            : `<td class="routine-empty-cell" aria-label="No class on ${escape(dayName(day))} at ${escape(row.time_label)}"><span aria-hidden="true">·</span></td>`;
+        }).join("")}</tr>`;
+      }).join("");
+      const headerCells = timetableGrid.querySelectorAll("thead th");
+      headerCells[0].textContent = "Time";
+      dayOrder.forEach((day, i) => {
+        const count = dayEvents[day].length;
+        headerCells[i + 1].scope = "col";
+        headerCells[i + 1].dataset.freeDay = String(count === 0);
+        headerCells[i + 1].innerHTML = `<span>${dayName(day)}</span><small>${count ? `${count} class${count === 1 ? "" : "es"}` : "No classes"}</small>`;
+      });
     }
+    const freeDays = dayOrder.filter((day) => dayEvents[day].length === 0);
+    document.getElementById("routineAgenda").innerHTML = dayOrder.filter((day) => dayEvents[day].length).map((day) =>
+      `<section class="routine-day-section"><h4>${dayName(day)}<span>${dayEvents[day].length} class${dayEvents[day].length === 1 ? "" : "es"}</span></h4>
+        ${dayEvents[day].map(({ time, item }) => `<div class="routine-agenda-event"><div class="routine-agenda-time">${timeLabel(time)}</div>${card(item)}</div>`).join("")}
+      </section>`
+    ).join("") + (freeDays.length ? `<p class="routine-free-days">No classes on ${freeDays.map(dayName).join(", ")}.</p>` : "");
 
     // Render Section Details Table
     if (sectionsDetailsTableBody) {
@@ -1486,7 +1497,21 @@ document.addEventListener("DOMContentLoaded", () => {
   // -----------------------------------------------------------------------
   // Routine Zoom Controls
   // -----------------------------------------------------------------------
-  let currentRoutineZoom = 0.85;
+  let currentRoutineZoom = 1;
+  let routineView = window.matchMedia("(max-width: 767px)").matches ? "day" : "week";
+  function setRoutineView(view) {
+    routineView = view;
+    const weekly = view === "week";
+    routineScrollContainer.hidden = !weekly;
+    document.getElementById("routineAgenda").hidden = weekly;
+    document.getElementById("routineScrollHint").hidden = !weekly;
+    document.querySelector(".routine-zoom-controls").hidden = !weekly;
+    document.getElementById("routineWeekBtn").setAttribute("aria-pressed", String(weekly));
+    document.getElementById("routineDayBtn").setAttribute("aria-pressed", String(!weekly));
+    measureRoutineHeight();
+  }
+  document.getElementById("routineWeekBtn").addEventListener("click", () => setRoutineView("week"));
+  document.getElementById("routineDayBtn").addEventListener("click", () => setRoutineView("day"));
   let routineMeasureFrame;
   function measureRoutineHeight() {
     cancelAnimationFrame(routineMeasureFrame);
@@ -1539,12 +1564,13 @@ document.addEventListener("DOMContentLoaded", () => {
 
   if (routineZoomResetBtn) {
     routineZoomResetBtn.addEventListener("click", () => {
-      applyRoutineZoom(0.85);
+      applyRoutineZoom(1);
     });
   }
 
-  // Apply default comfortable 85% zoom on load
-  applyRoutineZoom(0.85);
+  // Keep class text at full size; phones start with the readable day list.
+  applyRoutineZoom(1);
+  setRoutineView(routineView);
 
   // -----------------------------------------------------------------------
   // Sidebar Hide / Unhide (3-Dots Fullscreen Routine Toggle)
@@ -1565,7 +1591,7 @@ document.addEventListener("DOMContentLoaded", () => {
         resultsPanel.classList.add("lg:col-span-12");
       }
       if (showSidebarFab) showSidebarFab.classList.remove("hidden");
-      if (toggleFullscreenText) toggleFullscreenText.textContent = "Exit Fullscreen";
+      if (toggleFullscreenText) toggleFullscreenText.textContent = "Show controls";
       showToast("Course Selection hidden. Routine is now Full Screen!", "info");
     } else {
       if (sidebarPanel) sidebarPanel.classList.remove("hidden");
@@ -1574,7 +1600,7 @@ document.addEventListener("DOMContentLoaded", () => {
         resultsPanel.classList.add("lg:col-span-7");
       }
       if (showSidebarFab) showSidebarFab.classList.add("hidden");
-      if (toggleFullscreenText) toggleFullscreenText.textContent = "Fullscreen";
+      if (toggleFullscreenText) toggleFullscreenText.textContent = "Expand";
       showToast("Course Selection panel restored.", "info");
     }
     refreshIcons();

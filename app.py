@@ -13,6 +13,8 @@ import re
 import tempfile
 import time
 from datetime import datetime
+from collections import OrderedDict
+from threading import Lock
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -152,13 +154,44 @@ class FeedCache:
 
 cache = FeedCache()
 
+class ExactAnalysisCache:
+    """Reuse only identical requests against the same live feed object."""
+    def __init__(self, capacity=16):
+        self.capacity = capacity
+        self.feed = None
+        self.results = OrderedDict()
+        self.lock = Lock()
+
+    def get(self, feed, key):
+        with self.lock:
+            if self.feed is not feed:
+                self.feed = feed
+                self.results.clear()
+            result = self.results.get(key)
+            if result is not None:
+                self.results.move_to_end(key)
+            return result
+
+    def put(self, feed, key, result):
+        with self.lock:
+            # An older in-flight search must not replace a refreshed feed's cache.
+            if self.feed is not feed:
+                return
+            self.results[key] = result
+            self.results.move_to_end(key)
+            while len(self.results) > self.capacity:
+                self.results.popitem(last=False)
+
+
+analysis_cache = ExactAnalysisCache()
+
 # --------------------------------------------------------------------------
 # Request / Response Models
 # --------------------------------------------------------------------------
 class GenerateRequest(BaseModel):
     courses: List[str] = Field(..., description="List of course codes, e.g. ['CSE110', 'MAT110']")
     only_open: bool = False
-    target_days: Optional[int] = None
+    target_days: Optional[int] = Field(default=None, ge=1, le=7)
     exact_days: bool = False
     prefer_faculty: Optional[List[str]] = None
     avoid_faculty: Optional[List[str]] = None
@@ -167,7 +200,7 @@ class GenerateRequest(BaseModel):
     skip_times: Optional[List[str]] = None
     sort_by: str = "faculty"
     secondary_sort_by: Optional[str] = "days"
-    max_results: int = 30
+    max_results: int = Field(default=30, ge=1, le=100)
 
 
 # --------------------------------------------------------------------------
@@ -362,6 +395,10 @@ def get_course_details(code: str):
 @app.post("/api/generate")
 def generate_schedules(req: GenerateRequest):
     feed = cache.get_feed()
+    request_key = req.model_dump_json()
+    reused = analysis_cache.get(feed, request_key)
+    if reused is not None:
+        return {**reused, "logs": [*reused["logs"], "Reused an identical analysis for the current feed."]}
     all_sections = feed.get("courses", [])
     last_updated = (feed.get("metadata") or {}).get("lastUpdated", "Unknown")
 
@@ -454,69 +491,28 @@ def generate_schedules(req: GenerateRequest):
 
         per_course_lists.append(rows)
 
-    def sections_clash(r1, r2):
-        for m1 in r1["all_meetings"]:
-            for m2 in r2["all_meetings"]:
-                if sc.meetings_conflict(m1, m2):
-                    return True
-        if sc.exam_conflict(r1["exam"], r2["exam"]):
-            return True
-        return False
-
-    # Combinations calculation via fast backtracking search with pruning
     total_raw = 1
-    for r_list in per_course_lists:
-        total_raw *= len(r_list)
-    log(f"Evaluating combinations across {len(per_course_lists)} courses (total potential space: {total_raw:,})...")
-
-    # Sort logic
+    for rows in per_course_lists:
+        total_raw *= len(rows)
+    log(f"Searching {total_raw:,} potential combinations with reusable conflict checks...")
     sort_keys_combined = req.sort_by
     if req.secondary_sort_by and req.secondary_sort_by != "none" and req.secondary_sort_by != req.sort_by:
         sort_keys_combined += f",{req.secondary_sort_by}"
-
-    sort_key_fn, sort_keys = sc.build_sort_key_fn(sort_keys_combined, prefer_prefs, target_days=req.target_days, on_warning=log)
-
-    valid = []
-    MAX_VALID_CAP = 50000
-    n_courses = len(per_course_lists)
-
-    def backtrack(depth, current_combo):
-        if depth == n_courses:
-            combo = tuple(current_combo)
-            if req.exact_days and req.target_days is not None and sc.days_used_score(combo) != req.target_days:
-                return False
-            for r in combo:
-                r["_pref_match"] = sc.section_matches_faculty_pref(r, prefer_prefs)
-            stats = {
-                "gap": sc.gap_score(combo),
-                "days": sc.days_used_score(combo),
-                "days_list": extract_active_days(combo),
-                "faculty_matches": sc.faculty_match_count(combo, prefer_prefs),
-                "target_days_diff": sc.target_days_score(combo, req.target_days) if req.target_days is not None else 0,
-            }
-            valid.append((combo, stats, sort_key_fn(combo)))
-            return len(valid) >= MAX_VALID_CAP
-
-        for section in per_course_lists[depth]:
-            has_clash = False
-            for prev_sec in current_combo:
-                if sections_clash(prev_sec, section):
-                    has_clash = True
-                    break
-            if not has_clash:
-                current_combo.append(section)
-                stop = backtrack(depth + 1, current_combo)
-                current_combo.pop()
-                if stop:
-                    return True
-        return False
-
-    backtrack(0, [])
-    total_valid = len(valid)
-    log(f"Found {total_valid} conflict-free combination(s).")
+    _, sort_keys = sc.build_sort_key_fn(sort_keys_combined, prefer_prefs, target_days=req.target_days, on_warning=log)
+    started = time.perf_counter()
+    total_valid, valid = sc.search_combinations(
+        per_course_lists, sort_keys, prefer_prefs, target_days=req.target_days,
+        exact_days=req.exact_days, max_results=req.max_results,
+    )
+    for combo, stats, _ in valid:
+        stats["days_list"] = extract_active_days(combo)
+        stats.setdefault("target_days_diff", 0)
+        for row in combo:
+            row["_pref_match"] = sc.section_matches_faculty_pref(row, prefer_prefs)
+    log(f"Found {total_valid:,} conflict-free combinations in {time.perf_counter() - started:.2f}s (complete search).")
 
     if total_valid == 0:
-        return {
+        result = {
             "success": True,
             "total_valid": 0,
             "count": 0,
@@ -525,6 +521,9 @@ def generate_schedules(req: GenerateRequest):
             "logs": logs,
             "combinations": [],
         }
+
+        analysis_cache.put(feed, request_key, result)
+        return result
 
     if sort_keys != ["none"]:
         valid.sort(key=lambda item: item[2])
@@ -539,7 +538,7 @@ def generate_schedules(req: GenerateRequest):
             "grid": build_json_weekly_grid(combo),
         })
 
-    return {
+    result = {
         "success": True,
         "total_valid": total_valid,
         "count": len(serialized_combos),
@@ -548,6 +547,9 @@ def generate_schedules(req: GenerateRequest):
         "logs": logs,
         "combinations": serialized_combos,
     }
+
+    analysis_cache.put(feed, request_key, result)
+    return result
 
 
 @app.post("/api/export/pdf")
