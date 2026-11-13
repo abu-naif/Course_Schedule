@@ -1517,10 +1517,10 @@ document.addEventListener("DOMContentLoaded", () => {
     cancelAnimationFrame(routineMeasureFrame);
     routineMeasureFrame = requestAnimationFrame(() => {
       if (!timetableGrid || !routineScrollContainer) return;
-      const height = timetableGrid.getBoundingClientRect().height;
+      const height = timetableGrid.offsetHeight;
       if (height > 0) {
         const frameHeight = routineScrollContainer.offsetHeight - routineScrollContainer.clientHeight;
-        routineScrollContainer.style.height = `${Math.ceil(height) + frameHeight + 1}px`;
+        routineScrollContainer.style.height = `${Math.ceil(height * currentRoutineZoom) + frameHeight + 1}px`;
       }
     });
   }
@@ -1531,10 +1531,9 @@ document.addEventListener("DOMContentLoaded", () => {
   function applyRoutineZoom(zoomLevel) {
     currentRoutineZoom = Math.min(Math.max(zoomLevel, 0.5), 1.5);
     if (routineZoomWrapper) {
-      // Layout zoom keeps sticky cells in the same scrolling coordinate system.
-      routineZoomWrapper.style.zoom = String(currentRoutineZoom);
-      routineZoomWrapper.style.width = "max-content";
-      routineZoomWrapper.style.minWidth = `${100 / currentRoutineZoom}%`;
+      routineZoomWrapper.style.transform = `scale(${currentRoutineZoom})`;
+      routineZoomWrapper.style.transformOrigin = "top left";
+      routineZoomWrapper.style.width = `${100 / currentRoutineZoom}%`;
 
       measureRoutineHeight();
     }
