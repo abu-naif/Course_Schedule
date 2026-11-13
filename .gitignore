@@ -33,3 +33,13 @@ ehthumbs.db
 .idea/
 *.swp
 *.swo
+
+# Frontend build dependencies and browser test artifacts
+node_modules/
+test-results/
+playwright-report/
+
+# Local environment secrets
+.env
+.env.*
+!.env.example

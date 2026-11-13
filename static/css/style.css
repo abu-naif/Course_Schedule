@@ -282,3 +282,99 @@ html:not(.dark) #helpModal { background-color:rgba(15,23,42,.45); }
 html.dark header .bg-clip-text { color:#bfdbfe !important; }
 html:not(.dark) header .bg-clip-text { color:#1d4ed8 !important; }
 header .brand-accent { color:var(--accent); }
+
+/* Installation and small-screen layout. */
+[hidden] { display:none !important; }
+.install-panel { max-width:1216px; margin:28px auto 0; padding:20px 24px; display:flex; align-items:center; flex-wrap:wrap; gap:16px; border:1px solid var(--line); border-radius:16px; background:var(--surface); }
+.install-panel strong { color:var(--ink); font-size:14px; }
+.install-panel p { color:var(--muted); margin-top:4px; font-size:12px; }
+#installAppBtn { margin-left:auto; background:#2563eb; color:#fff; padding:12px 20px; border-radius:10px; font-size:13px; font-weight:600; }
+#installInstructions { flex-basis:100%; color:var(--muted); font-size:13px; line-height:1.7; }
+#sidebarPanel,#resultsPanel,#resultsCard,#activeResultsView { min-width:0; }
+#routineScrollContainer { max-width:100%; overscroll-behavior-x:contain; }
+@media(max-width:767px) {
+  body { background:var(--page) !important; }
+  body > header,[class*="backdrop-blur"] { backdrop-filter:none !important; -webkit-backdrop-filter:none !important; }
+  body > header { background:var(--page) !important; }
+  header > div { padding-left:16px !important; padding-right:16px !important; }
+  header .bg-clip-text { font-size:17px; }
+  header p { font-size:9px !important; }
+  header .w-10.h-10 { width:34px; height:34px; flex-shrink:0; }
+  header button { min-width:40px; min-height:44px; }
+  main { padding-left:12px !important; padding-right:12px !important; }
+  .planner-intro { padding-top:24px; }
+  .intro-description { font-size:13px; line-height:1.6; }
+  input:not([type="checkbox"]):not([type="range"]),select,textarea { font-size:16px !important; }
+  button { min-height:40px; touch-action:manipulation; }
+  .target-day-btn { min-height:44px; }
+  .quick-add-btn { min-height:36px; }
+  #sidebarPanel > div,#resultsCard { padding:16px; box-shadow:none !important; }
+  #resultsCard { min-height:440px; }
+  #resultsPanel { scroll-margin-top:90px; }
+  #emptyState { padding:20px 0; }
+  .schedule-illustration { transform:none; box-shadow:none; }
+  .preview-label { font-size:8px; letter-spacing:1px; }
+  .empty-copy h3 { font-size:20px; }
+  #timetableGrid { min-width:960px; }
+  #routineZoomWrapper { transition:none; }
+  .timetable-block { box-shadow:none; transition:none; }
+  .timetable-block:hover { transform:none; }
+  #activeResultsView > .flex > .flex { flex-wrap:wrap; gap:8px; }
+  #activeResultsView > .flex { align-items:flex-start; }
+  #activeResultsView > .flex > .flex.items-center.space-x-2 { margin-left:0; }
+  #courseInspectorModal > div,#helpModal > div { max-height:85dvh; }
+  #courseInspectorModal > div > .overflow-y-auto { overflow-x:auto; }
+  #courseInspectorModal table { min-width:580px; }
+  #toastContainer { left:12px; right:12px; bottom:max(12px,env(safe-area-inset-bottom)); }
+  #toastContainer > div { max-width:100%; }
+  #showSidebarFab { left:12px; bottom:max(12px,env(safe-area-inset-bottom)); }
+  .install-panel { margin:20px 12px 0; padding:16px; }
+  .planner-footer { padding-bottom:max(20px,env(safe-area-inset-bottom)); }
+  .animate-ping { animation:none; }
+}
+@media(max-width:380px) {
+  header .space-x-3 { margin-left:0; gap:4px; }
+  header .bg-clip-text { font-size:15px; }
+  header p { max-width:155px; }
+  .planner-intro h1 { font-size:27px; }
+  #sidebarPanel > div:first-child > .flex.items-center.justify-between { flex-wrap:wrap; gap:10px; }
+}
+@media print { .install-panel { display:none !important; } }
+@media(max-width:767px) {
+  #exportActions > div { flex-wrap:wrap; gap:8px; }
+  #exportActions > div > button { margin-left:0 !important; }
+  header > div > .flex:last-child { gap:4px; flex-shrink:0; }
+  header > div > .flex:last-child > * { margin-left:0 !important; }
+}
+
+/* Native disclosures work with touch, mouse and keyboard, without extra JS. */
+.preference-accordion > summary { display:flex; align-items:center; gap:10px; padding:15px 14px; min-height:52px; cursor:pointer; list-style:none; color:var(--ink); font-size:13px; font-weight:550; touch-action:manipulation; }
+.preference-accordion > summary::-webkit-details-marker { display:none; }
+.accordion-heading { display:flex; align-items:center; gap:9px; min-width:0; flex:1; }
+.accordion-heading > svg { flex-shrink:0; }
+.accordion-arrow { width:8px; height:8px; margin:0 3px 4px 0; border-right:2px solid var(--accent); border-bottom:2px solid var(--accent); transform:rotate(45deg); flex-shrink:0; }
+.preference-accordion[open] > summary .accordion-arrow { transform:rotate(225deg); margin-top:5px; margin-bottom:0; }
+.preference-accordion[open] > summary { border-bottom:1px solid var(--line); }
+.accordion-content { padding:14px; }
+.preference-accordion > summary:hover { background:color-mix(in srgb,var(--accent) 6%,transparent); border-radius:12px; }
+@media(max-width:767px) {
+  .preference-accordion > summary { font-size:12px; }
+  .accordion-content .flex-1 { min-width:0; }
+  .skip-time-controls { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:8px; }
+  .skip-time-controls > #skipDaySelect { grid-column:1 / -1; width:100%; }
+  .skip-time-controls > * { margin-left:0 !important; min-width:0; }
+  #courseMandatorySlots input { min-width:0; }
+  .accordion-content input[type="checkbox"] { flex-shrink:0; }
+}
+
+@media(max-width:767px) {
+  #sidebarPanel > div:first-child > .flex.items-center.justify-between { flex-wrap:wrap; gap:10px; }
+  #selectedCoursesCount { white-space:nowrap; }
+  #sidebarPanel label > input[type="checkbox"] { flex-shrink:0; }
+}
+/* Preserve readable labels when switching to the light palette. */
+html:not(.dark) .text-slate-100,
+html:not(.dark) #selectedCoursesCount { color:var(--ink) !important; }
+html:not(.dark) header .bg-gradient-to-tr svg { color:#fff !important; }
+html:not(.dark) #toastContainer > div { color:var(--ink) !important; }
+html:not(.dark) #toastContainer > div:not([class*="bg-slate-"]) { color:#fff !important; }

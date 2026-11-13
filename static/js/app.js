@@ -4,8 +4,12 @@
  */
 
 document.addEventListener("DOMContentLoaded", () => {
-  // Initialize Lucide icons
-  lucide.createIcons();
+  // Convert only new placeholders; keep existing SVGs and their event references.
+  function refreshIcons() {
+    lucide.createIcons();
+    document.querySelectorAll("svg[data-lucide]").forEach((icon) => icon.removeAttribute("data-lucide"));
+  }
+  refreshIcons();
 
   // State
   const state = {
@@ -156,7 +160,6 @@ document.addEventListener("DOMContentLoaded", () => {
       themeIconSun.classList.remove("hidden");
       themeIconMoon.classList.add("hidden");
     }
-    lucide.createIcons();
   }
 
   themeToggleBtn.addEventListener("click", () => {
@@ -699,7 +702,7 @@ document.addEventListener("DOMContentLoaded", () => {
         })
         .join("");
 
-      lucide.createIcons();
+      refreshIcons();
 
       skipRulesChipsList.querySelectorAll(".remove-skip-rule-btn").forEach((btn) => {
         btn.addEventListener("click", () => removeSkipRule(btn.dataset.rule));
@@ -803,7 +806,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
       skipTimesSuggestions.innerHTML = headerHtml + itemsHtml;
       skipTimesSuggestions.classList.remove("hidden");
-      lucide.createIcons();
+      refreshIcons();
 
       // Attach click listeners
       skipTimesSuggestions.querySelectorAll(".time-suggestion-item").forEach((item) => {
@@ -978,7 +981,7 @@ document.addEventListener("DOMContentLoaded", () => {
       .join("");
 
     // Recreate Lucide Icons in chips
-    lucide.createIcons();
+    refreshIcons();
 
     // Attach listeners
     selectedCoursesContainer.querySelectorAll(".remove-course-btn").forEach((btn) => {
@@ -1282,7 +1285,7 @@ document.addEventListener("DOMContentLoaded", () => {
             </div>
           </div>
         `;
-        lucide.createIcons();
+        refreshIcons();
         showToast("0 conflict-free schedules found.", "warning");
         return;
       }
@@ -1314,7 +1317,7 @@ document.addEventListener("DOMContentLoaded", () => {
           </div>
         </div>
       `;
-      lucide.createIcons();
+      refreshIcons();
       showToast(err.message, "error");
     } finally {
       generateBtn.disabled = false;
@@ -1445,7 +1448,7 @@ document.addEventListener("DOMContentLoaded", () => {
         .join("");
     }
 
-    lucide.createIcons();
+    refreshIcons();
     applyRoutineZoom(currentRoutineZoom);
   }
 
@@ -1484,6 +1487,18 @@ document.addEventListener("DOMContentLoaded", () => {
   // Routine Zoom Controls
   // -----------------------------------------------------------------------
   let currentRoutineZoom = 0.85;
+  let routineMeasureFrame;
+  function measureRoutineHeight() {
+    cancelAnimationFrame(routineMeasureFrame);
+    routineMeasureFrame = requestAnimationFrame(() => {
+      if (!timetableGrid || !routineScrollContainer) return;
+      const height = timetableGrid.offsetHeight;
+      if (height > 0) routineScrollContainer.style.height = `${Math.ceil(height * currentRoutineZoom) + 10}px`;
+    });
+  }
+  if (window.ResizeObserver && timetableGrid) {
+    new ResizeObserver(measureRoutineHeight).observe(timetableGrid);
+  }
 
   function applyRoutineZoom(zoomLevel) {
     currentRoutineZoom = Math.min(Math.max(zoomLevel, 0.5), 1.5);
@@ -1492,15 +1507,7 @@ document.addEventListener("DOMContentLoaded", () => {
       routineZoomWrapper.style.transformOrigin = "top left";
       routineZoomWrapper.style.width = `${100 / currentRoutineZoom}%`;
 
-      // Eliminate dead vertical space from transform scale
-      setTimeout(() => {
-        if (timetableGrid && routineScrollContainer) {
-          const h = timetableGrid.offsetHeight;
-          if (h > 0) {
-            routineScrollContainer.style.height = `${Math.ceil(h * currentRoutineZoom) + 4}px`;
-          }
-        }
-      }, 20);
+      measureRoutineHeight();
     }
     if (routineZoomSelect) {
       for (const opt of routineZoomSelect.options) {
@@ -1570,7 +1577,7 @@ document.addEventListener("DOMContentLoaded", () => {
       if (toggleFullscreenText) toggleFullscreenText.textContent = "Fullscreen";
       showToast("Course Selection panel restored.", "info");
     }
-    lucide.createIcons();
+    refreshIcons();
   }
 
   if (toggleSidebarBtn) {

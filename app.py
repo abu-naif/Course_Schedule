@@ -281,6 +281,23 @@ def get_home():
     return FileResponse(BASE_DIR / "templates" / "index.html")
 
 
+@app.get("/favicon.ico", include_in_schema=False)
+def get_favicon():
+    return FileResponse(
+        BASE_DIR / "static" / "icons" / "favicon.ico",
+        media_type="image/vnd.microsoft.icon",
+    )
+
+
+@app.get("/sw.js", include_in_schema=False)
+def get_service_worker():
+    return FileResponse(
+        BASE_DIR / "static" / "sw.js",
+        media_type="application/javascript",
+        headers={"Cache-Control": "no-cache"},
+    )
+
+
 @app.get("/api/info")
 def get_feed_info():
     feed = cache.get_feed()
