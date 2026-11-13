@@ -378,3 +378,40 @@ html:not(.dark) #selectedCoursesCount { color:var(--ink) !important; }
 html:not(.dark) header .bg-gradient-to-tr svg { color:#fff !important; }
 html:not(.dark) #toastContainer > div { color:var(--ink) !important; }
 html:not(.dark) #toastContainer > div:not([class*="bg-slate-"]) { color:#fff !important; }
+
+/* A small, persistent switch replaces the oversized seat availability card. */
+.open-seats-toggle { display:inline-flex; align-items:center; gap:9px; position:relative; width:fit-content; max-width:100%; min-height:42px; padding:8px 11px; border:1px solid var(--line); border-radius:10px; background:var(--inset); color:var(--ink); cursor:pointer; font-size:12px; font-weight:550; touch-action:manipulation; }
+.open-seats-toggle > svg { color:#34d399; flex-shrink:0; }
+.open-seats-toggle > input { position:absolute; width:1px; height:1px; opacity:0; }
+.seat-switch-track { position:relative; width:30px; height:18px; border-radius:20px; background:#64748b; flex-shrink:0; }
+.seat-switch-track::after { content:""; position:absolute; left:3px; top:3px; width:12px; height:12px; border-radius:50%; background:white; }
+.open-seats-toggle > input:checked + .seat-switch-track { background:#2563eb; }
+.open-seats-toggle > input:checked + .seat-switch-track::after { transform:translateX(12px); }
+.open-seats-toggle > input:focus-visible + .seat-switch-track { outline:2px solid var(--accent); outline-offset:3px; }
+.open-seats-toggle:has(input:checked) { border-color:var(--accent); }
+html:not(.dark) .open-seats-toggle > svg { color:#047857; }
+
+/* Compact only the headings and controls above the unchanged timetable. */
+.routine-summary { gap:6px 10px !important; padding-bottom:8px !important; }
+.routine-summary > div { flex:1; min-width:0; gap:4px 8px !important; }
+.routine-summary #validCountBadge { font-size:12px; }
+.routine-summary #sortNotice { font-size:10px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.routine-toolbar { gap:6px !important; }
+.routine-title { gap:6px; min-width:0; }
+.routine-title h3 { font-size:12px; white-space:nowrap; }
+.routine-title #showingNotice { font-size:10px; white-space:nowrap; padding:2px 5px; }
+.routine-controls { gap:6px !important; }
+.routine-pagination,.routine-zoom-controls { padding:2px 3px !important; gap:2px; }
+.routine-controls button { min-width:32px; min-height:36px; display:flex; align-items:center; justify-content:center; margin-left:0 !important; }
+.routine-controls #optionJumpInput { width:30px; min-height:32px; font-size:12px !important; padding:2px; }
+.routine-controls #routineZoomSelect { width:65px; min-height:36px; font-size:12px !important; margin-left:0; padding:2px; }
+.routine-controls #totalOptionsDisplay { font-size:10px; white-space:nowrap; }
+.routine-controls #routineZoomResetBtn { padding:3px; }
+@media(max-width:767px) {
+  .routine-summary > div { display:block; }
+  .routine-summary #sortNotice { display:block; max-width:100%; }
+  .routine-summary #toggleFullscreenBtn { min-height:36px; min-width:36px; }
+  .routine-title { flex-basis:100%; }
+  .routine-controls { width:100%; }
+  .routine-controls > div { flex-shrink:0; }
+}

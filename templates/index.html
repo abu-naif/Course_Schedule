@@ -8,10 +8,10 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="Course Schedule">
   <script src="/static/js/install.js" defer></script>
-  <link rel="icon" href="/static/icons/favicon.ico?v=1" sizes="any">
-  <link rel="icon" href="/static/icons/icon.svg?v=1" type="image/svg+xml">
-  <link rel="apple-touch-icon" href="/static/icons/icon-180.png?v=1" sizes="180x180">
-  <link rel="manifest" href="/static/manifest.webmanifest?v=1">
+  <link rel="icon" href="/static/icons/favicon.ico?v=2" sizes="any">
+  <link rel="icon" href="/static/icons/icon.svg?v=2" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/static/icons/icon-180.png?v=2" sizes="180x180">
+  <link rel="manifest" href="/static/manifest.webmanifest?v=2">
   <title>BracU Course Combinator | Intelligent Schedule Planner</title>
   <meta name="description" content="Conflict-free schedule planner and course combination generator for BRAC University students.">
   
@@ -31,7 +31,7 @@
       <!-- Brand Logo -->
       <div class="flex items-center space-x-3">
         <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-600 to-cyan-500 flex items-center justify-center shadow-lg shadow-brand-500/20">
-          <i data-lucide="calendar-range" class="w-5 h-5 text-white"></i>
+          <i data-lucide="book-open" class="w-5 h-5 text-white"></i>
         </div>
         <div>
           <div class="flex items-center space-x-2">
@@ -171,30 +171,23 @@
             <button id="resetPrefsBtn" class="text-xs text-slate-400 hover:text-slate-200 underline">Reset</button>
           </div>
 
-          <!-- Only Open Seats Toggle -->
-          <label class="flex items-center justify-between p-3 rounded-xl bg-slate-900/60 border border-slate-700/50 cursor-pointer hover:bg-slate-900 transition">
-            <div class="flex items-center space-x-3">
-              <div class="p-2 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                <i data-lucide="users" class="w-4 h-4"></i>
-              </div>
-              <div>
-                <p class="text-sm font-medium text-slate-200">Only Open Seats</p>
-                <p class="text-xs text-slate-400">Exclude sections that are currently full (0 seats remaining)</p>
-              </div>
-            </div>
-            <input type="checkbox" id="onlyOpenCheckbox" class="w-4 h-4 rounded text-brand-600 bg-slate-900 border-slate-700 focus:ring-brand-500">
+          <!-- Compact, always-visible seat availability filter -->
+          <label class="open-seats-toggle" title="Exclude sections with no seats remaining">
+            <i data-lucide="users" class="w-4 h-4"></i>
+            <span>Only open seats</span>
+            <input type="checkbox" id="onlyOpenCheckbox" role="switch">
+            <span class="seat-switch-track" aria-hidden="true"></span>
           </label>
 
-          <!-- Class Days Target -->
-          <div class="p-3 rounded-xl bg-slate-900/60 border border-slate-700/50 space-y-2.5">
-            <div class="flex items-center justify-between">
-              <div class="flex items-center space-x-2">
-                <i data-lucide="calendar" class="w-4 h-4 text-brand-400"></i>
-                <span class="text-sm font-medium text-slate-200">Desired Class Days per Week</span>
-              </div>
+          <!-- Class day settings use the same disclosure as advanced preferences. -->
+          <details id="desiredDaysDetails" class="preference-accordion bg-slate-900/60 border border-slate-700/50 rounded-xl">
+            <summary>
+              <span class="accordion-heading"><i data-lucide="calendar" class="w-4 h-4 text-brand-400"></i><span>Desired Class Days</span></span>
               <span id="targetDaysValue" class="text-xs font-semibold px-2 py-0.5 rounded bg-brand-500/20 text-brand-300 border border-brand-500/30">Any</span>
-            </div>
-
+              <span class="accordion-arrow" aria-hidden="true"></span>
+            </summary>
+            <div class="accordion-content space-y-2.5">
+              <p class="text-xs text-slate-400">Choose how many days a week you want classes.</p>
             <!-- Days Selector Pills -->
             <div class="grid grid-cols-6 gap-1.5">
               <button type="button" class="target-day-btn active-day text-xs py-1.5 rounded-lg border text-center font-medium transition" data-days="0">Any</button>
@@ -210,7 +203,8 @@
               <input type="checkbox" id="exactDaysCheckbox" class="w-3.5 h-3.5 rounded text-brand-600 bg-slate-900 border-slate-700 focus:ring-brand-500" disabled>
               <span>Enforce exact days (Hard filter: strictly drop all other day counts)</span>
             </label>
-          </div>
+            </div>
+          </details>
 
           <!-- Advanced preferences stay collapsed until requested. -->
           <details id="mandatorySectionsDetails" class="preference-accordion bg-slate-900/60 border border-slate-700/50 rounded-xl">
@@ -442,7 +436,7 @@
           <div id="activeResultsView" class="hidden space-y-4">
             
             <!-- Top Controls Bar: Summary & Fullscreen -->
-            <div class="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-700">
+            <div class="routine-summary flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-700">
               <div class="flex items-center space-x-2">
                 <span id="validCountBadge" class="text-sm font-bold text-emerald-400">
                   48 valid schedules found
@@ -458,10 +452,10 @@
 
             <!-- 1. WEEKLY CLASS ROUTINE MATRIX (Matching PDF Table Layout) -->
             <div class="space-y-2">
-              <div class="flex flex-wrap items-center justify-between gap-2">
+              <div class="routine-toolbar flex flex-wrap items-center justify-between gap-2">
                 
                 <!-- Left: Routine Title & Option Badge -->
-                <div class="flex items-center space-x-2">
+                <div class="routine-title flex items-center space-x-2">
                   <h3 class="text-sm font-bold text-slate-100 flex items-center space-x-2">
                     <i data-lucide="calendar-days" class="w-4 h-4 text-brand-400"></i>
                     <span>Weekly Class Routine</span>
@@ -470,10 +464,10 @@
                 </div>
 
                 <!-- Right Controls: Next/Prev Page + Zoom Controls -->
-                <div class="flex flex-wrap items-center gap-2">
+                <div class="routine-controls flex flex-wrap items-center gap-2">
                   
                   <!-- Page Navigation Controls (Next/Prev Page) -->
-                  <div class="flex items-center space-x-1 bg-slate-900 px-1.5 py-1 rounded-lg border border-slate-700 text-xs">
+                  <div class="routine-pagination flex items-center space-x-1 bg-slate-900 px-1.5 py-1 rounded-lg border border-slate-700 text-xs">
                     <button id="prevOptionBtn" class="p-1 rounded hover:bg-slate-800 text-slate-300 hover:text-white transition" title="Previous Option (Left Arrow)">
                       <i data-lucide="chevron-left" class="w-3.5 h-3.5"></i>
                     </button>
@@ -487,7 +481,7 @@
                   </div>
 
                   <!-- Routine Zoom Controls -->
-                  <div class="flex items-center space-x-1.5 bg-slate-900 px-2 py-1 rounded-lg border border-slate-700 text-xs">
+                  <div class="routine-zoom-controls flex items-center space-x-1.5 bg-slate-900 px-2 py-1 rounded-lg border border-slate-700 text-xs">
                     <span class="text-slate-400 text-[11px] font-medium hidden sm:inline">Zoom:</span>
                     <button id="routineZoomOutBtn" class="p-1 rounded hover:bg-slate-800 text-slate-300 hover:text-white transition" title="Zoom Out (-10%)">
                       <i data-lucide="zoom-out" class="w-3.5 h-3.5"></i>
@@ -496,7 +490,7 @@
                       <option value="0.7">70%</option>
                       <option value="0.75">75%</option>
                       <option value="0.8">80%</option>
-                      <option value="0.85" selected>85% (Default)</option>
+                      <option value="0.85" selected>85%</option>
                       <option value="0.9">90%</option>
                       <option value="1.0">100%</option>
                       <option value="1.15">115%</option>
@@ -504,8 +498,8 @@
                     <button id="routineZoomInBtn" class="p-1 rounded hover:bg-slate-800 text-slate-300 hover:text-white transition" title="Zoom In (+10%)">
                       <i data-lucide="zoom-in" class="w-3.5 h-3.5"></i>
                     </button>
-                    <button id="routineZoomResetBtn" class="px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-slate-200 text-[10px] font-mono border border-slate-700 transition" title="Reset Zoom to 85%">
-                      Reset
+                    <button id="routineZoomResetBtn" aria-label="Reset zoom to 85%" class="px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-slate-200 text-[10px] font-mono border border-slate-700 transition" title="Reset Zoom to 85%">
+                      <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
                     </button>
                   </div>
 
