@@ -15,16 +15,16 @@
         extend: {
           colors: {
             brand: {
-              50: '#eef2ff',
-              100: '#e0e7ff',
-              200: '#c7d2fe',
-              300: '#a5b4fc',
-              400: '#818cf8',
-              500: '#6366f1',
-              600: '#4f46e5',
-              700: '#4338ca',
-              800: '#3730a3',
-              900: '#312e81',
+              50: '#eff6ff',
+              100: '#dbeafe',
+              200: '#bfdbfe',
+              300: '#93c5fd',
+              400: '#60a5fa',
+              500: '#3b82f6',
+              600: '#2563eb',
+              700: '#1d4ed8',
+              800: '#1e40af',
+              900: '#1e3a8a',
             },
             dark: {
               bg: '#0f172a',
@@ -58,13 +58,13 @@
         <div>
           <div class="flex items-center space-x-2">
             <span class="font-bold text-lg tracking-tight bg-gradient-to-r from-white via-slate-100 to-slate-400 bg-clip-text text-transparent">
-              Course Combinator
+              Course<span class="brand-accent">Schedule</span>
             </span>
             <span class="text-xs px-2 py-0.5 rounded-full bg-brand-500/20 text-brand-300 font-medium border border-brand-500/30">
-              Web v2.0
+              BRACU
             </span>
           </div>
-          <p class="text-xs text-slate-400">BracU Conflict-Free Schedule Generator</p>
+          <p class="text-xs text-slate-400">A little planning. A better semester.</p>
         </div>
       </div>
 
@@ -99,6 +99,14 @@
 
   <!-- ==================== MAIN CONTENT CONTAINER ==================== -->
   <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+    <section class="planner-intro" aria-labelledby="planner-title">
+      <div>
+        <p class="eyebrow"><span></span> YOUR SEMESTER, SIMPLIFIED</p>
+        <h1 id="planner-title">Plan your <em>perfect semester.</em></h1>
+        <p class="intro-description">Your courses. Your preferences. A schedule that fits your life.</p>
+      </div>
+      <div class="intro-note"><i data-lucide="shield-check" class="w-5 h-5"></i><div><strong>Less overlap. More possibility.</strong><span>Checks classes, labs &amp; final exams</span></div></div>
+    </section>
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
       
       <!-- ==================== LEFT COLUMN: CONTROLS & INPUTS (5 COLS) ==================== -->
@@ -109,7 +117,7 @@
           <div class="flex items-center justify-between mb-3">
             <div class="flex items-center space-x-2">
               <i data-lucide="book-open" class="w-5 h-5 text-brand-400"></i>
-              <h2 class="font-semibold text-base text-white">Course Selection</h2>
+              <h2 class="font-semibold text-base text-white">Choose your courses</h2>
             </div>
             <div class="flex items-center space-x-2">
               <span id="selectedCoursesCount" class="text-xs px-2 py-0.5 rounded-full bg-slate-700 text-slate-300">
@@ -121,7 +129,7 @@
                 title="Hide this panel for Fullscreen Routine"
               >
                 <i data-lucide="maximize-2" class="w-3.5 h-3.5"></i>
-                <span class="font-semibold">Fullscreen (⋮)</span>
+                <span class="font-semibold">Expand</span>
               </button>
             </div>
           </div>
@@ -133,7 +141,7 @@
               <input
                 type="text"
                 id="courseInput"
-                placeholder="Search code or name (e.g. CSE110, MAT110, Physics)..."
+                placeholder="Search a course code or name…"
                 autocomplete="off"
                 class="w-full pl-9 pr-20 py-2.5 bg-slate-900 border border-slate-700 rounded-xl text-sm text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition"
               >
@@ -180,7 +188,7 @@
           <div class="flex items-center justify-between">
             <div class="flex items-center space-x-2">
               <i data-lucide="sliders" class="w-5 h-5 text-cyan-400"></i>
-              <h2 class="font-semibold text-base text-white">Preferences & Constraints</h2>
+              <h2 class="font-semibold text-base text-white">Make it your own</h2>
             </div>
             <button id="resetPrefsBtn" class="text-xs text-slate-400 hover:text-slate-200 underline">Reset</button>
           </div>
@@ -434,15 +442,18 @@
           
           <!-- State 1: Empty Initial State -->
           <div id="emptyState" class="my-auto py-16 text-center space-y-4">
-            <div class="w-16 h-16 rounded-2xl bg-slate-700/40 border border-slate-600/40 flex items-center justify-center mx-auto text-slate-400">
-              <i data-lucide="calendar-search" class="w-8 h-8 text-brand-400"></i>
+            <div class="preview-label"><span class="preview-dot"></span> A LITTLE LOOK AT WHAT’S NEXT</div>
+            <div class="schedule-illustration" aria-hidden="true">
+              <div class="mini-toolbar"><span></span><span></span><span></span><b>Your week, in balance</b></div>
+              <div class="mini-week"><span>MON</span><span>TUE</span><span>WED</span><span>THU</span><span>FRI</span></div>
+              <div class="mini-grid"><div class="mini-event event-one">CSE110<small>09:00 — 10:20</small></div><div class="mini-event event-two">MAT110<small>11:00 — 12:20</small></div><div class="mini-event event-three">CSE110<small>09:00 — 10:20</small></div><div class="mini-event event-four">ENG101<small>14:00 — 15:20</small></div></div>
+              <div class="mini-caption"><i data-lucide="check-circle-2" class="w-3.5 h-3.5"></i> Space for learning. Space for life.</div>
             </div>
-            <div class="max-w-md mx-auto">
-              <h3 class="text-base font-semibold text-white">No Schedules Generated Yet</h3>
-              <p class="text-xs text-slate-400 mt-1">
-                Select at least 2 courses on the left and click <b>"Find Conflict-Free Schedules"</b> to generate all clash-free combinations.
-              </p>
+            <div class="max-w-md mx-auto empty-copy">
+              <h3 class="text-base font-semibold text-white">Your next semester starts here.</h3>
+              <p class="text-xs text-slate-400 mt-1">Add at least 2 courses, fine-tune your preferences, and find your favorite conflict-free schedule.</p>
             </div>
+            <div class="planning-steps"><span><b>01</b> Add courses</span><span><b>02</b> Set preferences</span><span><b>03</b> Find your fit</span></div>
           </div>
 
           <!-- State 2: Loading State -->
@@ -645,6 +656,8 @@
 
     </div>
   </main>
+
+  <footer class="planner-footer"><span>Made for a smoother semester.</span><span>BRACU Course Schedule · Plan with possibility</span></footer>
 
   <!-- ==================== MODAL: COURSE SECTION INSPECTOR ==================== -->
   <div id="courseInspectorModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
