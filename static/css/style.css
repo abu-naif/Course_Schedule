@@ -436,14 +436,14 @@ html:not(.dark) .open-seats-toggle > svg { color:#047857; }
 #routineScrollContainer { padding:0; background:var(--inset) !important; box-shadow:none; isolation:isolate; }
 #timetableGrid { min-width:1120px; table-layout:fixed; border-collapse:separate; border-spacing:0; }
 #timetableGrid th,#timetableGrid td { border-right:1px solid var(--line); border-bottom:1px solid var(--line); }
-#timetableGrid thead th { padding:13px 6px; font-size:12px; font-weight:650; text-align:center; }
-#timetableGrid thead th small { display:block; color:#afc7eb; font-size:10px; font-weight:400; margin-top:4px; }
+#timetableGrid thead th { padding:8px 6px; font-size:12px; font-weight:650; text-align:center; }
+#timetableGrid thead th small { display:block; color:#afc7eb; font-size:10px; font-weight:400; margin-top:2px; }
 #timetableGrid thead th:first-child { width:116px; text-align:left; padding-left:12px; position:sticky; left:0; z-index:3; }
-#timetableGrid .routine-time-cell { position:sticky; left:0; z-index:2; width:116px; padding:14px 10px; background:var(--surface) !important; color:var(--ink) !important; text-align:left; font-variant-numeric:tabular-nums; box-shadow:3px 0 8px #00000008; font-size:11px; font-weight:600; }
+#timetableGrid .routine-time-cell { position:sticky; left:0; z-index:2; width:116px; padding:5px 10px; background:var(--surface) !important; color:var(--ink) !important; text-align:left; font-variant-numeric:tabular-nums; box-shadow:3px 0 8px #00000008; font-size:11px; font-weight:600; }
 .routine-time-cell small,.routine-agenda-time small { display:block; color:var(--muted); font-size:10px; font-weight:400; margin-top:5px; }
-#timetableGrid .routine-event-cell { padding:7px; vertical-align:top; background:var(--inset); }
-#timetableGrid .routine-empty-cell { padding:12px; text-align:center; color:var(--line); background:var(--inset); }
-#timetableGrid tbody tr { height:68px; }
+#timetableGrid .routine-event-cell { padding:4px; vertical-align:top; background:var(--inset); }
+#timetableGrid .routine-empty-cell { padding:5px; text-align:center; color:var(--line); background:var(--inset); }
+#timetableGrid tbody tr { height:40px; }
 .routine-course-card[class*="course-color-"] { background:color-mix(in srgb,var(--course-accent) 12%,var(--surface)) !important; border:1px solid color-mix(in srgb,var(--course-accent) 30%,var(--line)); border-left:3px solid var(--course-accent); border-radius:9px; padding:10px; color:var(--ink) !important; box-shadow:none; font-weight:400; min-width:0; }
 .routine-course-card + .routine-course-card { margin-top:6px; }
 .routine-course-heading { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:5px; }
@@ -479,3 +479,31 @@ html:not(.dark) .open-seats-toggle > svg { color:#047857; }
 html:not(.dark) .routine-course-card[class*="course-color-"] { font-weight:400; border:1px solid color-mix(in srgb,var(--course-accent) 30%,var(--line)); border-left:3px solid var(--course-accent); }
 html:not(.dark) .routine-view-switch button[aria-pressed="true"] { background:#2563eb; color:#fff !important; }
 html:not(.dark) .routine-view-switch button[aria-pressed="false"] { color:var(--muted); }
+
+/* Compact the weekly grid without shrinking text or changing the day list. */
+#timetableGrid .routine-time-cell { line-height:1.25; }
+#timetableGrid .routine-time-cell small { margin-top:1px; line-height:1.2; }
+#timetableGrid .routine-course-card { padding:6px; border-radius:7px; }
+#timetableGrid .routine-course-heading { line-height:1.3; }
+#timetableGrid .routine-section { margin-top:2px; line-height:1.25; }
+#timetableGrid .routine-course-meta { flex-direction:row; flex-wrap:wrap; gap:2px 8px; margin-top:4px; line-height:1.3; }
+#timetableGrid .routine-course-card + .routine-course-card { margin-top:4px; }
+#routineScrollContainer { overflow-y:hidden; }
+#routineZoomWrapper { display:block; }
+
+/* Friendly, labeled ranking preferences with native mobile selection menus. */
+.preference-order { container-type:inline-size; }
+.preference-order-help { margin-bottom:10px; color:var(--muted); font-size:12px; line-height:1.6; }
+.preference-order-grid { display:grid; grid-template-columns:minmax(0,1fr); gap:10px; }
+.preference-choice { min-width:0; border:1px solid var(--line); border-radius:12px; padding:12px; background:var(--inset); }
+.preference-choice-primary { border-color:color-mix(in srgb,var(--accent) 40%,var(--line)); }
+.preference-choice-heading { display:flex; align-items:center; gap:8px; margin-bottom:9px; }
+.preference-choice label { display:block; margin:0; font-size:12px; font-weight:600; color:var(--ink); }
+.preference-number { display:grid; place-items:center; width:23px; height:23px; flex-shrink:0; border-radius:7px; background:color-mix(in srgb,var(--accent) 14%,var(--surface)); color:var(--accent); font-size:11px; }
+.preference-select-wrap { position:relative; }
+.preference-select-wrap::after { content:""; position:absolute; right:15px; top:17px; width:7px; height:7px; border-right:2px solid var(--accent); border-bottom:2px solid var(--accent); transform:rotate(45deg); pointer-events:none; }
+.preference-choice select { display:block; width:100%; min-width:0; min-height:46px; appearance:none; -webkit-appearance:none; padding:10px 35px 10px 12px; border:1px solid var(--line); border-radius:9px; background:var(--surface); color:var(--ink); font-family:inherit; font-size:14px; line-height:1.5; font-weight:500; cursor:pointer; }
+.preference-choice select:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+.preference-choice:focus-within { border-color:var(--accent); }
+.preference-choice select option { background:var(--surface); color:var(--ink); }
+@container(min-width:480px) { .preference-order-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }

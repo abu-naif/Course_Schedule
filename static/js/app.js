@@ -1518,7 +1518,10 @@ document.addEventListener("DOMContentLoaded", () => {
     routineMeasureFrame = requestAnimationFrame(() => {
       if (!timetableGrid || !routineScrollContainer) return;
       const height = timetableGrid.offsetHeight;
-      if (height > 0) routineScrollContainer.style.height = `${Math.ceil(height * currentRoutineZoom) + 10}px`;
+      if (height > 0) {
+        const frameHeight = routineScrollContainer.offsetHeight - routineScrollContainer.clientHeight;
+        routineScrollContainer.style.height = `${Math.ceil(height * currentRoutineZoom) + frameHeight + 1}px`;
+      }
     });
   }
   if (window.ResizeObserver && timetableGrid) {

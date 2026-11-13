@@ -349,33 +349,40 @@
             </div>
           </details>
 
-          <!-- Sorting & Limits -->
-          <div class="grid grid-cols-2 gap-3">
-            <div>
-              <label class="block text-xs font-medium text-slate-300 mb-1">Primary Sort:</label>
-              <select id="primarySortSelect" class="w-full px-2.5 py-2 bg-slate-900 border border-slate-700 rounded-lg text-xs text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-500 font-medium">
-                <option value="faculty" selected>Preferred faculty matches</option>
-                <option value="days">Less days a week</option>
-                <option value="gap">Least idle gap (Compact)</option>
-                <option value="target_days">Closest to desired days</option>
-                <option value="earliest">Earliest class start</option>
-                <option value="latest">Latest class end</option>
-                <option value="none">No sorting</option>
-              </select>
+          <!-- Plain-language priorities retain the existing ranking values. -->
+          <section class="preference-order" aria-label="Schedule preferences">
+            <p id="preferenceOrderHelp" class="preference-order-help">Choose what matters most. When schedules match equally, your second preference decides.</p>
+            <div class="preference-order-grid">
+              <div class="preference-choice preference-choice-primary">
+                <div class="preference-choice-heading"><span class="preference-number" aria-hidden="true">1</span><label for="primarySortSelect">Primary Preference</label></div>
+                <div class="preference-select-wrap">
+                  <select id="primarySortSelect" aria-describedby="preferenceOrderHelp">
+                    <option value="faculty" selected>Preferred faculty</option>
+                    <option value="days">Fewer class days</option>
+                    <option value="gap">Shorter breaks</option>
+                    <option value="target_days">My desired days</option>
+                    <option value="earliest">Earlier class start</option>
+                    <option value="latest">Later class finish</option>
+                    <option value="none">No preference</option>
+                  </select>
+                </div>
+              </div>
+              <div class="preference-choice">
+                <div class="preference-choice-heading"><span class="preference-number" aria-hidden="true">2</span><label for="secondarySortSelect">Secondary Preference</label></div>
+                <div class="preference-select-wrap">
+                  <select id="secondarySortSelect" aria-describedby="preferenceOrderHelp">
+                    <option value="days" selected>Fewer class days</option>
+                    <option value="faculty">Preferred faculty</option>
+                    <option value="gap">Shorter breaks</option>
+                    <option value="target_days">My desired days</option>
+                    <option value="earliest">Earlier class start</option>
+                    <option value="latest">Later class finish</option>
+                    <option value="none">No preference</option>
+                  </select>
+                </div>
+              </div>
             </div>
-            <div>
-              <label class="block text-xs font-medium text-slate-300 mb-1">Secondary Sort:</label>
-              <select id="secondarySortSelect" class="w-full px-2.5 py-2 bg-slate-900 border border-slate-700 rounded-lg text-xs text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-500 font-medium">
-                <option value="days" selected>Less days a week</option>
-                <option value="faculty">Preferred faculty matches</option>
-                <option value="gap">Least idle gap</option>
-                <option value="target_days">Closest to desired days</option>
-                <option value="earliest">Earliest start</option>
-                <option value="latest">Latest end</option>
-                <option value="none">(None)</option>
-              </select>
-            </div>
-          </div>
+          </section>
 
           <!-- Max Results Slider -->
           <div class="flex items-center justify-between text-xs text-slate-300 pt-1">
